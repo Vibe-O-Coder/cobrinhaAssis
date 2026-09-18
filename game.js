@@ -1,10 +1,10 @@
 "use strict";
-/* ================= UTILS ================= */
+/* ================= CONFIG ================= */
 const $ = (s) => document.querySelector(s);
 const TAU = Math.PI * 2,
-  COLS = 30,
-  ROWS = 20,
-  CELL = 32,
+  COLS = 100,  // Mapa maior
+  ROWS = 75,   // Mapa maior
+  CELL = 28,
   W = COLS * CELL,
   H = ROWS * CELL;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -86,28 +86,47 @@ function persist() {
   } catch (e) {}
 }
 
-/* ================= LEADERBOARD ================= */
+/* ================= LEADERBOARD GLOBAL ================= */
 const LB = {
-  eps: ["api.php", ".netlify/functions/score"],
-  src: "local",
+  // Endpoints em ordem de prioridade. Primeiro que funcionar é usado.
+  // Para produção: substitua pelo seu endpoint real (Netlify/Vercel/Cloudflare)
+  eps: [
+    "/.netlify/functions/score",  // Netlify Functions (local e produção)
+    "https://seu-projeto.vercel.app/api/score",  // Vercel (exemplo)
+    "https://api.example.com/score"  // API customizada (substitua)
+  ],
+  src: "global",
   async req(ep, opts) {
-    const r = await fetch(ep, opts);
-    if (!r.ok) throw new Error("http");
-    const j = await r.json();
-    if (!j || j.ok === false) throw new Error("api");
-    return j;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch(ep, { ...opts, signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!r.ok) throw new Error("http");
+      const j = await r.json();
+      if (!j || j.ok === false) throw new Error("api");
+      return j;
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw e;
+    }
   },
   async top() {
+    // Tenta endpoint global primeiro
     for (const ep of this.eps) {
       try {
-        const j = await this.req(ep + "?action=top&_=" + Date.now());
-        if (j && j.list) {
-          this.src = j.source || ep;
-          return j.list;
+        // GET request para listar leaderboard
+        const j = await this.req(ep + "?limit=50&_=" + Date.now());
+        if (j && j.scores) {
+          this.src = j.source || "Global";
+          return j.scores;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.log("Falha no endpoint:", ep, e.message);
+      }
     }
-    this.src = "local (sem backend)";
+    // Fallback para localStorage
+    this.src = "local (offline)";
     try {
       return JSON.parse(localStorage.getItem("srkBoard") || "[]");
     } catch (e) {
@@ -115,23 +134,35 @@ const LB = {
     }
   },
   async submit(e) {
+    // Envia para todos os endpoints
+    const entry = {
+      name: e.name || "Anon",
+      score: Math.floor(e.score || 0),
+      wave: e.wave || 0,
+      kills: e.kills || 0,
+      cls: e.cls || 0
+    };
+    let success = false;
     for (const ep of this.eps) {
       try {
-        await this.req(ep + "?action=submit", {
+        await this.req(ep, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(e),
+          body: JSON.stringify(entry),
         });
-        this.src = ep;
-        return true;
-      } catch (err) {}
+        this.src = "Global";
+        success = true;
+      } catch (err) {
+        console.log("Falha ao enviar para:", ep, err.message);
+      }
     }
+    // Salva localmente também
     try {
       const l = JSON.parse(localStorage.getItem("srkBoard") || "[]");
-      l.push(Object.assign({ ts: Math.floor(Date.now() / 1000) }, e));
+      l.push({ ...entry, ts: Math.floor(Date.now() / 1000) });
       l.sort((a, b) => b.score - a.score);
-      localStorage.setItem("srkBoard", JSON.stringify(l.slice(0, 200)));
-      this.src = "local";
+      localStorage.setItem("srkBoard", JSON.stringify(l.slice(0, 500)));
+      if (!success) this.src = "local";
     } catch (err) {}
     return true;
   },
@@ -231,7 +262,8 @@ let players = [],
   blocks = [],
   bombs = [],
   parts = [],
-  texts = [];
+  texts = [],
+  effects = [];  // Efeitos visuais (lasers, explosões, etc)
 let wave = 0,
   score = 0,
   kills = 0,
@@ -836,26 +868,31 @@ function buyTree(bi, pathStr) {
 }
 function finalizeTree(p) {
   const b = p.treeB;
-  p.dmg *= 1 + clamp(b.dmg, 0, 150) / 100;
-  p.dmgFlat += clamp(b.dmgFlat, 0, 4);
-  p.cd *= 1 - clamp(b.cd, 0, 60) / 100;
-  p.spd *= 1 - clamp(b.spd, 0, 45) / 100;
-  const hp = Math.floor(clamp(b.hp, 0, 8));
+  // DIMINISHING RETURNS para evitar crescimento exponencial
+  // Dano: reduz eficácia após 50% de bônus
+  const dmgEff = b.dmg <= 50 ? b.dmg : 50 + (b.dmg - 50) * 0.5;
+  p.dmg *= 1 + clamp(dmgEff, 0, 120) / 100;
+  p.dmgFlat += clamp(b.dmgFlat, 0, 3);
+  // Cooldown: limite de 50% redução máxima
+  p.cd *= 1 - clamp(b.cd, 0, 50) / 100;
+  p.spd *= 1 - clamp(b.spd, 0, 40) / 100;
+  const hp = Math.floor(clamp(b.hp, 0, 6));
   p.maxHp += hp;
   p.hp += hp;
-  p.crit += clamp(b.crit, 0, 50) / 100;
-  p.pierce += Math.floor(clamp(b.pierce, 0, 3));
-  p.shots += Math.floor(clamp(b.shots, 0, 4));
-  p.ls += clamp(b.ls, 0, 0.4);
-  if (b.regen > 0) p.regenMax = Math.max(3, 6 - Math.floor(b.regen));
-  p.boom += clamp(b.boom, 0, 6);
-  p.venom += clamp(b.venom, 0, 4);
-  p.range *= 1 + clamp(b.range, 0, 120) / 100;
-  p.soulMult *= 1 + clamp(b.souls, 0, 100) / 100;
-  p.goldBonus = clamp(b.gold, 0, 40);
-  p.shieldBase += Math.floor(clamp(b.shield, 0, 2));
-  p.thorns += Math.floor(clamp(b.thorns, 0, 4));
-  p.iframeBonus += clamp(b.iframe, 0, 1.2);
+  // Crítico: limite de 40% máximo
+  p.crit += clamp(b.crit, 0, 40) / 100;
+  p.pierce += Math.floor(clamp(b.pierce, 0, 2));
+  p.shots += Math.floor(clamp(b.shots, 0, 3));
+  p.ls += clamp(b.ls, 0, 0.3);
+  if (b.regen > 0) p.regenMax = Math.max(4, 6 - Math.floor(b.regen));
+  p.boom += clamp(b.boom, 0, 4);
+  p.venom += clamp(b.venom, 0, 3);
+  p.range *= 1 + clamp(b.range, 0, 80) / 100;
+  p.soulMult *= 1 + clamp(b.souls, 0, 60) / 100;
+  p.goldBonus = clamp(b.gold, 0, 30);
+  p.shieldBase += Math.floor(clamp(b.shield, 0, 1));
+  p.thorns += Math.floor(clamp(b.thorns, 0, 3));
+  p.iframeBonus += clamp(b.iframe, 0, 0.8);
   if (b.magnet >= 1) p.magnet = true;
   p.shield = Math.max(p.shield, p.shieldBase);
 }
@@ -1034,6 +1071,7 @@ function startRun(clsList, m) {
   bombs = [];
   parts = [];
   texts = [];
+  effects = [];
   wave = 0;
   score = 0;
   kills = 0;
@@ -1131,10 +1169,62 @@ function startWave(n) {
   for (let i = 0; i < Math.min(3 + Math.floor(n / 2), 8); i++) addBlock();
   let q;
   if (n % 5 === 0) {
-    const bs = ["boss", "boss2", "boss3", "boss4"];
-    waveBoss = bs[(Math.floor(n / 5) - 1) % 4];
-    bossLeft = 1 + Math.floor(n / 10);
-    q = bossLeft + 3;
+    // Boss waves: escolhe 1-3 bosses diferentes baseado na wave
+    const bossTier = Math.floor((n / 5 - 1) / 2);
+    const bossPool = ["boss", "boss2", "boss3", "boss4", "boss5", "boss6"];
+    const availableBosses = bossPool.slice(0, Math.min(4 + bossTier, bossPool.length));
+    
+    // Sistema de múltiplos bosses mais complexo
+    // A cada 15 waves: 2 bosses, a cada 30 waves: 3 bosses ou 1 elite
+    let numBosses = 1;
+    if (n % 30 === 0 && n >= 30) {
+      // Wave 30, 60, 90...: BOSS ELITE super poderoso
+      waveBoss = "boss_elite";
+      bossLeft = 1;
+      banner("⚠️ CHEFE ELITE ⚠️", "Prepare-se para o inimigo supremo!");
+      sfx("up");
+      spawnQ = 1 + Math.floor(n / 10);
+      spawnT = 1.8;
+      return;
+    } else if (n % 15 === 0 && n >= 15) {
+      // Waves 15, 45, 75...: 2 bosses simultâneos
+      numBosses = 2;
+    } else if (n % 25 === 0 && n >= 25) {
+      // Waves 25, 50, 75...: 3 bosses (sobreposição com 15 cria variação)
+      numBosses = Math.max(numBosses, 3);
+    }
+    
+    // Seleciona bosses únicos que não se repetem
+    const selectedBosses = [];
+    const usedIndices = new Set();
+    for (let i = 0; i < numBosses && i < availableBosses.length; i++) {
+      let attempts = 0;
+      let idx;
+      do {
+        idx = (Math.floor(n / 5) - 1 + i + Math.floor(Math.random() * 3)) % availableBosses.length;
+        attempts++;
+      } while (usedIndices.has(idx) && attempts < 5);
+      
+      if (!usedIndices.has(idx)) {
+        usedIndices.add(idx);
+        selectedBosses.push(availableBosses[idx]);
+      }
+    }
+    
+    // Garante pelo menos 1 boss
+    if (selectedBosses.length === 0 && availableBosses.length > 0) {
+      selectedBosses.push(availableBosses[0]);
+    }
+    
+    waveBoss = selectedBosses[0];
+    bossLeft = selectedBosses.length;
+    
+    // Armazena os bosses secundários para spawnar depois
+    if (selectedBosses.length > 1) {
+      window.extraBosses = selectedBosses.slice(1);
+    }
+    
+    q = bossLeft + Math.floor(n / 10);
   } else {
     bossLeft = 0;
     q = Math.min(6 + n * 2, 30);
@@ -1159,6 +1249,54 @@ function pickType(w) {
   if (w >= 5) pool.push("charger", "orbiter");
   if (w >= 6) pool.push("healer");
   if (w >= 7) pool.push("sniper");
+  if (w >= 10) pool.push("sniper_elite");
+  
+  // Sistema de variantes progressivas
+  const tier = Math.floor((w - 1) / 10);  // Tier a cada 10 waves
+  const bossTier = Math.floor((w - 1) / 15);  // Boss tier a cada 15 waves
+  
+  // A cada 10 waves, inimigos básicos são substituídos por variantes elite
+  if (tier >= 1) {
+    // Waves 10-19: tier 1, waves 20-29: tier 2, etc.
+    const upgradeChance = Math.min(0.3 + tier * 0.1, 0.85);  // Chance aumenta com tier
+    
+    if (w % 10 >= 3) {  // Começa a aplicar variante após wave 3 do tier
+      // Substitui inimigos básicos por variantes mais fortes com padrões complexos
+      if (pool.includes("grunter") && Math.random() < upgradeChance) {
+        pool.push("grunt_veteran");
+        pool = pool.filter(t => t !== "grunter");  // Remove básico
+      }
+      if (pool.includes("runner") && Math.random() < upgradeChance) {
+        pool.push("runner_veteran");
+        pool = pool.filter(t => t !== "runner");
+      }
+      if (pool.includes("shooter") && Math.random() < upgradeChance) {
+        pool.push("shooter_veteran");
+        pool = pool.filter(t => t !== "shooter");
+      }
+      if (pool.includes("splitter") && Math.random() < upgradeChance) {
+        pool.push("splitter_veteran");
+        pool = pool.filter(t => t !== "splitter");
+      }
+      if (pool.includes("charger") && Math.random() < upgradeChance) {
+        pool.push("charger_veteran");
+        pool = pool.filter(t => t !== "charger");
+      }
+      if (pool.includes("orbiter") && Math.random() < upgradeChance) {
+        pool.push("orbiter_veteran");
+        pool = pool.filter(t => t !== "orbiter");
+      }
+      if (pool.includes("healer") && Math.random() < upgradeChance) {
+        pool.push("healer_veteran");
+        pool = pool.filter(t => t !== "healer");
+      }
+      if (pool.includes("sniper") && Math.random() < upgradeChance) {
+        pool.push("sniper_veteran");
+        pool = pool.filter(t => t !== "sniper");
+      }
+    }
+  }
+  
   return pick(pool);
 }
 function spawnEnemy(type) {
@@ -1270,6 +1408,11 @@ function spawnStep() {
   if (bossLeft > 0) {
     spawnEnemy(waveBoss);
     bossLeft--;
+    // Spawn extra bosses se existirem
+    if (bossLeft === 0 && window.extraBosses && window.extraBosses.length > 0) {
+      const extra = window.extraBosses.shift();
+      setTimeout(() => spawnEnemy(extra), 1500);
+    }
   } else spawnEnemy(pickType(wave));
 }
 
@@ -1858,18 +2001,42 @@ function updateEnemies(dt) {
         }
       }
     }
-    if (e.type === "sniper") {
+    if (e.type === "sniper" || e.type === "sniper_elite") {
       e.shT -= dt;
+      const isElite = e.type === "sniper_elite";
+      const shootTime = isElite ? 0.7 : 1.1;  // Tiro MUITO mais rápido
+      const bulletSpeed = isElite ? 1400 : 1100;  // Projétil muito mais rápido
       if (e.shT <= 0 && Hh) {
-        e.shT = 2.8;
-        const a = Math.atan2(Hh.y - e.y, Hh.x - e.x);
+        e.shT = shootTime;
+        // Predição EXTREMA para atirar bem à frente do jogador
+        const leadFactor = isElite ? 0.85 : 0.65;  // Predição muito maior
+        const distToPlayer = dist(e.x, e.y, Hh.x, Hh.y);
+        const timeToHit = distToPlayer / bulletSpeed;
+        const velX = Hh.vx || 0;
+        const velY = Hh.vy || 0;
+        const predX = Hh.x + velX * timeToHit * leadFactor * 2.5;
+        const predY = Hh.y + velY * timeToHit * leadFactor * 2.5;
+        const a = Math.atan2(predY - e.y, predX - e.x);
         ebullets.push({
           x: e.x,
           y: e.y,
-          vx: Math.cos(a) * 430,
-          vy: Math.sin(a) * 430,
-          life: 2,
-          r: 5,
+          vx: Math.cos(a) * bulletSpeed,
+          vy: Math.sin(a) * bulletSpeed,
+          life: 4,
+          r: isElite ? 6 : 5,
+          c: isElite ? "#ff2e52" : "#ff4d6d",
+          trail: true,  // Rastro visual
+        });
+        addParts(e.x, e.y, "#ffaa00", 8);
+        // Efeito de mira (linha vermelha)
+        effects.push({
+          type: "laser",
+          x: e.x,
+          y: e.y,
+          tx: e.x + Math.cos(a) * 180,
+          ty: e.y + Math.sin(a) * 180,
+          life: 0.15,
+          c: isElite ? "#ff2e52" : "#ff4d6d",
         });
       }
     }
@@ -2067,7 +2234,7 @@ function damagePlayer(p, n) {
   }
 }
 
-/* ================= HABILIDADES ================= */
+/* ================= HABILIDADES ESPECIAIS COM REWORK ================= */
 function tryAbility(p) {
   if (!p || p.dead || p.abT > 0) return;
   useAbility(p);
@@ -2077,89 +2244,222 @@ function useAbility(p) {
   p.abT = p.abCd;
   sfx("ab");
   switch (p.cls) {
-    case 0: {
-      addParts(Hh.x, Hh.y, "#ff5252", 26, 3);
-      shake = Math.min(12, shake + 6);
+    case 0: { // Guerreiro - Giro Mortal EXPANDIDO
+      // Efeito visual MASSIVO de explosão
+      addParts(Hh.x, Hh.y, "#ff5252", 35, 4);
+      addParts(Hh.x, Hh.y, "#ff9838", 28, 3);
+      shake = Math.min(16, shake + 8);
+      flash = 0.15;
+      // Onda de choque visual
+      effects.push({
+        type: "shockwave",
+        x: Hh.x,
+        y: Hh.y,
+        r: 0,
+        maxR: 180,
+        life: 0.5,
+        c: "#ff5252",
+        w: 8
+      });
       for (const e of enemies) {
-        if (dist(Hh.x, Hh.y, e.x, e.y) < 140 + e.r) {
-          e.hp -= 3;
-          e.flash = 0.15;
+        const d = dist(Hh.x, Hh.y, e.x, e.y);
+        if (d < 160 + e.r) {
+          const dmg = 4 + p.boom * 0.3; // Dano escala com boom
+          e.hp -= dmg;
+          e.flash = 0.2;
           e.lastHitBy = p;
-          const d = dist(Hh.x, Hh.y, e.x, e.y) || 1;
-          e.x += ((e.x - Hh.x) / d) * 30;
-          e.y += ((e.y - Hh.y) / d) * 30;
+          const push = d > 0 ? (160 - d) / d : 1;
+          e.x += ((e.x - Hh.x) / d) * push * 50;
+          e.y += ((e.y - Hh.y) / d) * push * 50;
+          // Sangue/partículas do inimigo
+          addParts(e.x, e.y, EDEF[e.type]?.c || "#ff5d7f", 8);
         }
       }
       cleanupEnemies();
       break;
     }
-    case 1: {
-      for (let i = 0; i < 10; i++) {
-        const a = (i / 10) * TAU,
+    case 1: { // Mago - Nova Arcana com EFEITOS
+      // Anel mágico visual
+      effects.push({
+        type: "ring",
+        x: Hh.x,
+        y: Hh.y,
+        r: 10,
+        maxR: 200,
+        life: 0.4,
+        c: "#7c6bff",
+        w: 4
+      });
+      for (let i = 0; i < 12; i++) { // +2 projéteis
+        const a = (i / 12) * TAU,
           crit = Math.random() < p.crit;
         pbullets.push({
           x: Hh.x,
           y: Hh.y,
-          vx: Math.cos(a) * 420,
-          vy: Math.sin(a) * 420,
-          dmg: (p.dmg + p.dmgFlat) * 1.2 * (crit ? 2 : 1),
-          pierce: p.pierce,
+          vx: Math.cos(a) * 450,
+          vy: Math.sin(a) * 450,
+          dmg: (p.dmg + p.dmgFlat) * 1.3 * (crit ? 2 : 1),
+          pierce: p.pierce + 1, // +1 perfuração
           venom: p.venom,
           ls: p.ls,
           owner: p,
           color: p.color,
           crit,
-          life: 1.2,
+          life: 1.4,
           hits: [],
+          trail: true, // Rastro mágico
         });
       }
+      // Partículas extras
+      addParts(Hh.x, Hh.y, "#7c6bff", 30, 3);
+      addParts(Hh.x, Hh.y, "#b04dff", 22, 2);
       break;
     }
-    case 2: {
+    case 2: { // Assassino - Passo Sombrio com RASTRO
       const h = p.cells[0];
-      let nx = h[0],
-        ny = h[1];
-      for (let i = 0; i < 4; i++) {
+      let nx = h[0], ny = h[1];
+      // Deixa rastro de sombras
+      for (let i = 0; i < 5; i++) {
         nx = (nx + p.dir.x + COLS) % COLS;
         ny = (ny + p.dir.y + ROWS) % ROWS;
         p.cells.unshift([nx, ny]);
         p.cells.pop();
+        // Efeito de sombra no chão
+        effects.push({
+          type: "shadow",
+          x: (nx + 0.5) * CELL,
+          y: (ny + 0.5) * CELL,
+          life: 0.6,
+          c: "rgba(77,255,166,0.4)",
+          r: CELL * 0.6
+        });
       }
-      p.iframes = Math.max(p.iframes, 0.6);
+      p.iframes = Math.max(p.iframes, 0.8); // +0.2s invulnerabilidade
       const Nh = headPx(p);
-      addParts(Nh.x, Nh.y, "#4dffa6", 18, 2);
+      addParts(Nh.x, Nh.y, "#4dffa6", 24, 3);
+      addParts(Nh.x, Nh.y, "#7dff5e", 18, 2);
+      // Flash visual
+      flash = 0.1;
       for (const e of enemies) {
-        if (dist(Nh.x, Nh.y, e.x, e.y) < 90 + e.r) {
-          e.hp -= 2.5;
-          e.flash = 0.15;
+        if (dist(Nh.x, Nh.y, e.x, e.y) < 100 + e.r) {
+          e.hp -= 3 + p.venom * 0.2; // Dano com veneno
+          e.flash = 0.2;
           e.lastHitBy = p;
+          e.dot = Math.max(e.dot, p.venom * 0.5);
+          e.dotT = 2;
         }
       }
       cleanupEnemies();
       break;
     }
-    case 3: {
+    case 3: { // Necromante - Colheita Sombria com DRENAGEM VISUAL
       let hits = 0;
-      addParts(Hh.x, Hh.y, "#b04dff", 22, 2);
+      // Vórtice de alma
+      effects.push({
+        type: "vortex",
+        x: Hh.x,
+        y: Hh.y,
+        r: 0,
+        maxR: 180,
+        life: 0.6,
+        c: "#b04dff",
+        w: 3
+      });
+      addParts(Hh.x, Hh.y, "#b04dff", 28, 3);
+      addParts(Hh.x, Hh.y, "#7c6bff", 22, 2);
       for (const e of enemies) {
-        if (dist(Hh.x, Hh.y, e.x, e.y) < 160 + e.r) {
-          e.hp -= 2.5;
-          e.flash = 0.15;
+        const d = dist(Hh.x, Hh.y, e.x, e.y);
+        if (d < 180 + e.r) {
+          e.hp -= 3 + p.venom * 0.3;
+          e.flash = 0.2;
           e.lastHitBy = p;
           hits++;
+          // Linha de drenagem
+          effects.push({
+            type: "drain",
+            x: e.x,
+            y: e.y,
+            tx: Hh.x,
+            ty: Hh.y,
+            life: 0.4,
+            c: "#b04dff"
+          });
         }
       }
-      heal(p, hits >= 2 ? 1 : 0);
+      if (hits >= 2) {
+        heal(p, 1);
+        // Cura visual
+        texts.push({
+          x: Hh.x,
+          y: Hh.y - 30,
+          txt: "❤️ DRENADO!",
+          c: "#7dff5e",
+          life: 0.8,
+          s: 14
+        });
+      }
       cleanupEnemies();
       break;
     }
-    case 4: {
-      p.shieldT = 3;
-      addParts(Hh.x, Hh.y, "#ffd75e", 20, 2);
+    case 4: { // Paladino - Égide Divina com AURA
+      p.shieldT = 3.5; // +0.5s
+      // Aura dourada expansiva
+      effects.push({
+        type: "aura",
+        x: Hh.x,
+        y: Hh.y,
+        r: 20,
+        maxR: 120,
+        life: 0.5,
+        c: "#ffd75e",
+        w: 6
+      });
+      effects.push({
+        type: "shield",
+        x: Hh.x,
+        y: Hh.y,
+        r: 40,
+        life: 3,
+        c: "rgba(255,215,94,0.3)"
+      });
+      addParts(Hh.x, Hh.y, "#ffd75e", 32, 3);
+      addParts(Hh.x, Hh.y, "#ff9838", 24, 2);
+      // Empurra inimigos próximos
+      for (const e of enemies) {
+        const d = dist(Hh.x, Hh.y, e.x, e.y);
+        if (d < 100 + e.r) {
+          e.hp -= 2;
+          e.flash = 0.15;
+          e.lastHitBy = p;
+          const push = d > 0 ? 1 / d : 1;
+          e.x += (e.x - Hh.x) * push * 40;
+          e.y += (e.y - Hh.y) * push * 40;
+        }
+      }
       break;
     }
-    case 5: {
-      bombs.push({ x: Hh.x, y: Hh.y, t: 1.4, r: 95, dmg: 4, owner: p });
+    case 5: { // Bombardeiro - Bomba Ambulante GIGANTE
+      const boomDmg = 5 + p.boom * 0.5; // Dano escala com boom
+      const boomRadius = 110 + p.boomR * 0.3;
+      bombs.push({ 
+        x: Hh.x, 
+        y: Hh.y, 
+        t: 1.2, // -0.2s mais rápido
+        r: boomRadius, 
+        dmg: boomDmg, 
+        owner: p,
+        mega: true // Bandeira para efeito especial
+      });
+      // Alerta visual da bomba
+      effects.push({
+        type: "bombWarning",
+        x: Hh.x,
+        y: Hh.y,
+        r: boomRadius,
+        life: 1.2,
+        c: "rgba(255,82,82,0.4)"
+      });
+      addParts(Hh.x, Hh.y, "#ff5252", 20, 2);
       break;
     }
   }
@@ -2265,6 +2565,12 @@ function togglePause() {
 }
 function togglePowers() {
   const ov = $("#powersOv");
+  const pauseOv = $("#pauseOv");
+  // Se estiver pausado, fecha o pause primeiro para mostrar os powers na frente
+  if (paused && !pauseOv.classList.contains("hidden")) {
+    paused = false;
+    pauseOv.classList.add("hidden");
+  }
   if (!ov.classList.contains("hidden")) {
     ov.classList.add("hidden");
     return;
@@ -2275,7 +2581,15 @@ function togglePowers() {
       const list = p.powerLog || [];
       const cname = (CLASSES[p.cls] || {}).name || "?";
       const cic = (CLASSES[p.cls] || {}).ic || "🐍";
-      return `<div style="margin:10px 0"><b style="color:${p.color}">${cic} ${cname} (J${(p.idx || 0) + 1})</b><br>${list.length ? list.map((n) => `<span class="pchip">${n}</span>`).join("") : '<span style="color:#8f7fc0">nenhum poder ainda</span>'}</div>`;
+      // Mostra também os poderes da skill tree
+      const treeCount = (save.tree || []).filter(k => {
+        const parts = k.split("-");
+        const bi = parseInt(parts[0]);
+        return TREE_BASES[bi] && 
+          ((parts.length === 1) || treeNode(bi, parts.slice(1).map(Number)));
+      }).length;
+      const treeInfo = treeCount > 0 ? `<br><small style="color:#8fe6b8">🌳 Skill Tree: ${treeCount} poder(es)</small>` : "";
+      return `<div style="margin:10px 0"><b style="color:${p.color}">${cic} ${cname} (J${(p.idx || 0) + 1})</b><br>${list.length ? list.map((n) => `<span class="pchip">${n}</span>`).join("") : '<span style="color:#8f7fc0">nenhum poder ainda</span>'}${treeInfo}</div>`;
     })
     .join("");
   ov.classList.remove("hidden");
@@ -2765,14 +3079,16 @@ function artOrbiter(r) {
   ctx.fill();
 }
 function artSniper(r, e) {
+  const isElite = e && e.type === "sniper_elite";
+  const maxTime = isElite ? 1.8 : 2.8;
   const charge =
-    e && e.shT !== undefined && e.shT < 1.4 ? clamp(1 - e.shT / 1.4, 0, 1) : 0;
+    e && e.shT !== undefined && e.shT < maxTime ? clamp(1 - e.shT / maxTime, 0, 1) : 0;
   ctx.fillStyle = "#14100a";
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, TAU);
   ctx.fill();
-  ctx.strokeStyle = charge > 0.3 ? "#ff4d6d" : "#ffd75e";
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = charge > 0.3 ? (isElite ? "#ff2e52" : "#ff4d6d") : (isElite ? "#ff995e" : "#ffd75e");
+  ctx.lineWidth = isElite ? 3.5 : 2.5;
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(-r * 1.25, 0);
@@ -2785,8 +3101,8 @@ function artSniper(r, e) {
   ctx.lineTo(0, r * 1.25);
   ctx.stroke();
   const g = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 0.55);
-  g.addColorStop(0, charge > 0.3 ? "#ff2e55" : "#ffd75e");
-  g.addColorStop(1, "#3d2c06");
+  g.addColorStop(0, charge > 0.3 ? (isElite ? "#ff4d4d" : "#ff2e55") : (isElite ? "#ffcc5e" : "#ffd75e"));
+  g.addColorStop(1, isElite ? "#4d1a06" : "#3d2c06");
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(0, 0, r * 0.55, 0, TAU);
@@ -2976,14 +3292,18 @@ function artBoss4(r, e) {
 }
 const ARTFN = {
   grunter: artGrunter,
+  grunt_veteran: artGrunter,
   runner: artRunner,
+  runner_veteran: artRunner,
   shooter: artShooter,
+  shooter_veteran: artShooter,
   tank: artTank,
   boss: artBoss,
   splitter: artSplitter,
   mini: artSplitter,
   orbiter: artOrbiter,
   sniper: artSniper,
+  sniper_elite: artSniper,
   healer: artHealer,
   charger: artCharger,
   boss2: artBoss2,
@@ -3250,7 +3570,7 @@ function render(v) {
   for (const e of v.enemies) drawEnemy(e);
   /* linha de mira do franco-atirador */
   for (const e of v.enemies) {
-    if (e.type === "sniper" && e.shT !== undefined && e.shT < 1.4) {
+    if ((e.type === "sniper" || e.type === "sniper_elite") && e.shT !== undefined && e.shT < 1.4) {
       let tgt2 = null,
         bd = 1e9;
       for (const p of v.players) {
@@ -3266,8 +3586,9 @@ function render(v) {
       if (tgt2) {
         const hx = (tgt2.cells[0][0] + 0.5) * CELL,
           hy = (tgt2.cells[0][1] + 0.5) * CELL;
-        ctx.strokeStyle = `rgba(255,77,109,${0.25 + 0.45 * (1 - e.shT / 1.4)})`;
-        ctx.lineWidth = 1.5;
+        const isElite = e.type === "sniper_elite";
+        ctx.strokeStyle = `rgba(255,${isElite ? 46 : 77},${isElite ? 82 : 109},${0.3 + 0.5 * (1 - e.shT / (isElite ? 1.8 : 2.8))})`;
+        ctx.lineWidth = isElite ? 2.5 : 1.5;
         ctx.setLineDash([6, 6]);
         ctx.beginPath();
         ctx.moveTo(e.x, e.y);
@@ -3328,6 +3649,117 @@ function render(v) {
     ctx.globalAlpha = 1;
   }
   ctx.restore();
+  // Render TODOS os efeitos visuais
+  for (let i = effects.length - 1; i >= 0; i--) {
+    const ef = effects[i];
+    ef.life -= dt;
+    if (ef.life <= 0) {
+      effects.splice(i, 1);
+      continue;
+    }
+    const alpha = clamp(ef.life / (ef.maxLife || 1), 0, 1);
+    
+    if (ef.type === "laser") {
+      ctx.globalAlpha = clamp(ef.life * 6, 0, 0.7);
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 4]);
+      ctx.beginPath();
+      ctx.moveTo(ef.x, ef.y);
+      ctx.lineTo(ef.tx, ef.ty);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "shockwave") { // Onda de choque do Guerreiro
+      const progress = 1 - ef.life / 0.5;
+      const curR = ef.r + (ef.maxR - ef.r) * progress;
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = ef.w * alpha;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, curR, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "ring") { // Anel mágico do Mago
+      const progress = 1 - ef.life / 0.4;
+      const curR = ef.r + (ef.maxR - ef.r) * progress;
+      ctx.globalAlpha = alpha * 0.5;
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = ef.w * alpha;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, curR, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "shadow") { // Sombra do Assassino
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.fillStyle = ef.c;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, ef.r, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "vortex") { // Vórtice do Necromante
+      const progress = 1 - ef.life / 0.6;
+      const curR = ef.r + (ef.maxR - ef.r) * progress * 0.7;
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = ef.w * alpha;
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, curR, gameT * 3, gameT * 3 + TAU * 0.7);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "drain") { // Linha de drenagem
+      ctx.globalAlpha = alpha * 0.5;
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = 3 * alpha;
+      ctx.beginPath();
+      ctx.moveTo(ef.x, ef.y);
+      ctx.quadraticCurveTo(
+        (ef.x + ef.tx) / 2 + Math.sin(gameT * 10) * 10,
+        (ef.y + ef.ty) / 2,
+        ef.tx, ef.ty
+      );
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "aura") { // Aura do Paladino
+      const progress = 1 - ef.life / 0.5;
+      const curR = ef.r + (ef.maxR - ef.r) * progress;
+      ctx.globalAlpha = alpha * 0.4;
+      ctx.strokeStyle = ef.c;
+      ctx.lineWidth = ef.w * alpha;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, curR, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "shield") { // Escudo visual
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.fillStyle = ef.c;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, ef.r, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    else if (ef.type === "bombWarning") { // Alerta de bomba
+      const pulse = 0.5 + 0.5 * Math.sin(gameT * 15);
+      ctx.globalAlpha = alpha * 0.4 * pulse;
+      ctx.fillStyle = ef.c;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, ef.r, 0, TAU);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,50,50,0.6)";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
   if (flash > 0) {
     ctx.fillStyle = `rgba(255,30,60,${flash * 0.5})`;
     ctx.fillRect(0, 0, W, H);
