@@ -295,6 +295,15 @@ canvas#cv {
   text-align: center;
   padding: 14px;
 }
+#powersOv {
+  z-index: 99 !important;  # Powers aparecem NA FRENTE do pause!
+}
+#pauseOv {
+  z-index: 12;
+}
+#upOv {
+  z-index: 14;
+}
 .ov .cards {
   display: flex;
   gap: 14px;

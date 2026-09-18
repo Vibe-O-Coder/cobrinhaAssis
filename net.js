@@ -1,12 +1,33 @@
 "use strict";
-/* ============ REDE: relay PHP (long polling) ou MQTT público ============ */
+/* ============ REDE: relay PHP (long polling), MQTT público ou WebRTC LAN ============ */
 const BROKERS = [
   "wss://broker.emqx.io:8084/mqtt",
   "wss://broker.hivemq.com:8884/mqtt",
   "wss://mqtt.eclipseprojects.io:443/mqtt",
 ];
-const T = { PHP: "php", MQTT: "mqtt" };
+const T = { PHP: "php", MQTT: "mqtt", WEBRTC: "webrtc" };
 
+
+// Detecta se está em rede local (mesmo subnet)
+function isLocalNetwork() {
+  return window.location.hostname === "localhost" || 
+         window.location.hostname === "127.0.0.1" ||
+         window.location.hostname.startsWith("192.168.") ||
+         window.location.hostname.startsWith("10.") ||
+         window.location.hostname.endsWith(".local");
+}
+
+// Carrega PeerJS para WebRTC
+function ensurePeerJS() {
+  return new Promise((res) => {
+    if (typeof Peer !== "undefined") return res(true);
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js";
+    s.onload = () => res(typeof Peer !== "undefined");
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+  });
+}
 async function detectPhp() {
   try {
     const r = await fetch("relay.php?ping=1", { cache: "no-store" });
@@ -257,7 +278,10 @@ function createSession(isHost, code, cbs, kind) {
       cbs.onData && cbs.onData(d);
     }
   }
-  if (kind === T.PHP) {
+  if (kind === T.WEBRTC && isLocalNetwork()) {
+    tr = WebRTCTransport(code, isHost, raw, (m) => cbs.onStatus && cbs.onStatus(m), (m) => cbs.onFatal && cbs.onFatal(m));
+    if (!isHost) startKnock();
+  } else if (kind === T.PHP) {
     tr = PhpTransport(
       code,
       isHost,
@@ -312,5 +336,115 @@ function createSession(isHost, code, cbs, kind) {
           tr.close();
         } catch (e) {}
     },
+  };
+}
+
+/* ---------- WebRTC (LAN direta - sem lag) ---------- */
+function WebRTCTransport(code, isHost, onRaw, onStatus, onErr) {
+  let peer = null;
+  let conn = null;
+  let alive = true;
+  const myId = Math.random().toString(36).slice(2, 9);
+  const roomPrefix = "srkx-" + String(code).toLowerCase();
+  
+  onStatus("🔴 WebRTC: inicializando...");
+
+  async function init() {
+    try {
+      const ok = await ensurePeerJS();
+      if (!ok) throw new Error("PeerJS não carregou");
+
+      const peerId = isHost ? roomPrefix : roomPrefix + "-g-" + myId;
+      peer = new Peer(peerId, {
+        debug: 2,
+        config: {
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:stun1.l.google.com:19302" }
+          ]
+        }
+      });
+
+      peer.on("open", (id) => {
+        onStatus("🔴 WebRTC pronto: " + id);
+        if (!isHost) {
+          // Guest tenta conectar ao host
+          onStatus("🔴 Conectando a " + roomPrefix + "...");
+          conn = peer.connect(roomPrefix, {
+            reliable: true,
+            serialization: "json"
+          });
+          setupConnection();
+        }
+      });
+
+      peer.on("connection", (c) => {
+        if (conn && conn.open) {
+          c.close();
+          return;
+        }
+        conn = c;
+        setupConnection();
+      });
+
+      peer.on("error", (e) => {
+        onErr("WebRTC erro: " + e.type);
+      });
+
+      peer.on("disconnected", () => {
+        if (alive) {
+          onStatus("🔴 WebRTC desconectado, tentando reconectar...");
+          setTimeout(() => {
+            if (peer) peer.reconnect();
+          }, 2000);
+        }
+      });
+
+    } catch (e) {
+      onErr("WebRTC falhou: " + e.message);
+    }
+  }
+
+  function setupConnection() {
+    if (!conn) return;
+    
+    conn.on("open", () => {
+      onStatus("🔴 WebRTC conectado!");
+      if (!isHost) {
+        onRaw({ t: "knock", from: myId });
+      }
+    });
+
+    conn.on("data", (d) => {
+      if (!alive) return;
+      onRaw(d);
+    });
+
+    conn.on("close", () => {
+      if (alive) {
+        onStatus("⚠️ WebRTC conexão fechada");
+      }
+    });
+
+    conn.on("error", (e) => {
+      onErr("WebRTC erro: " + e.message);
+    });
+  }
+
+  return {
+    send: (o) => {
+      if (alive && conn && conn.open) {
+        try {
+          conn.send(o);
+        } catch (e) {}
+      }
+    },
+    close() {
+      alive = false;
+      try {
+        conn && conn.close();
+        peer && peer.destroy();
+      } catch (e) {}
+    }
   };
 }
