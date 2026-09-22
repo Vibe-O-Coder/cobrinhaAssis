@@ -1,0 +1,18 @@
+{
+  "passed": [
+    "Boot e modo local com câmeras independentes",
+    "PVP começa justo mesmo com loja, árvore, impossível e 2x",
+    "Poderes nos níveis 1, 5 e 10; escolhas simultâneas sem pausa",
+    "Morte súbita limpa perigos, mantém habilidades dentro e termina empates defensivos",
+    "Centauro não executa elites, não repõe munição ilimitada e raio nunca cura inimigos",
+    "Árvore tem 364 nós por atributo; compra irmãos e bloqueia só especializações",
+    "Migração converte fragmentos uma vez e reembolsa caminhos antigos profundos",
+    "As 16 classes usam ativas no PVP sem erros ou valores inválidos",
+    "Tablet e celular: canvas cabe, mantém proporção e controles de toque aparecem",
+    "Dois joysticks recebem toques simultâneos sem trocar os jogadores",
+    "Escudo absorve a horda, morrer para inimigos perde e mortes simultâneas empatam",
+    "Reservas compradas são usadas uma vez na campanha e preservadas no PVP",
+    "PVP LAN: lobby, câmera própria, movimento, item, escolha ao vivo e resultado nos dois lados"
+  ],
+  "errors": []
+}

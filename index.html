@@ -11,236 +11,222 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- ================= MENU ================= -->
     <div id="menu" class="screen">
       <h1 class="logo">🐍 SNAKE ROGUELIKE</h1>
       <div class="sub">⚔️ ULTRA EDITION ⚔️</div>
       <div class="stats">
         <div class="stat">💜 Almas: <b id="mSouls">0</b></div>
-        <div class="stat">💠 Fragmentos: <b id="mFrags">0</b></div>
         <div class="stat">🏆 Recorde: <b id="mBest">0</b></div>
         <div class="stat">🌊 Melhor onda: <b id="mWave">0</b></div>
+        <div class="stat hidden">👑 Vitórias: <b id="mWins">0</b></div>
       </div>
+
       <div class="row" style="margin: 4px 0">
         <span style="color: #b9a8ff">seu nome:</span>
         <input id="playerName" maxlength="16" placeholder="Viajante" />
       </div>
-      <div class="row" style="margin: 4px 0 10px">
+      <div class="row" style="margin: 4px 0">
         <span style="color: #b9a8ff">cor da cobra:</span>
         <div id="colorRow" class="row" style="gap: 6px"></div>
       </div>
-      <button class="btn gold" onclick="gotoClass('solo')">▶️ RUN SOLO</button>
-      <button class="btn" onclick="gotoClass('local')">
+
+      <!-- dificuldade e opções da run -->
+      <div class="row" style="margin: 6px 0 2px">
+        <span style="color: #b9a8ff">dificuldade:</span>
+        <div id="modeRow" class="row" style="gap: 6px"></div>
+      </div>
+      <div id="modeDesc" class="hintbar" style="margin: 0 0 6px"></div>
+      <div class="row" style="margin: 0 0 10px; gap: 8px">
+        <button class="btn small" data-act="toggle-afk" id="afkBtn">🤖 AFK: desligado</button>
+        <button class="btn small" data-act="toggle-fast" id="fastBtn">⏩ 2x: desligado</button>
+        <button class="btn small" data-act="toggle-touch" id="touchBtn">🕹️ Toque: auto</button>
+      </div>
+
+      <button class="btn gold" data-act="run-solo">▶️ RUN SOLO</button>
+      <button class="btn" data-act="run-local">
         👥 CO-OP LOCAL (mesmo teclado)
       </button>
-      <button class="btn" onclick="openOnline()">🌐 MULTIPLAYER ONLINE</button>
-      <button class="btn" onclick="openBoard()">🏆 RANKING</button>
-      <button class="btn" onclick="openShop()">🛒 LOJA DE ALMAS</button>
-      <button class="btn" onclick="openTree()">🌳 ÁRVORE DE HABILIDADES</button>
-      <button class="btn" onclick="showScreen('how')">📜 COMO JOGAR</button>
-      <button class="btn small" onclick="toggleMute()" id="muteBtn">
+      <button class="btn pvp" data-act="run-pvp">
+        ⚔️ PVP — DUELO EM TELA DIVIDIDA
+      </button>
+      <button class="btn" data-act="open-online">🌐 MULTIPLAYER ONLINE</button>
+      <button class="btn" data-act="open-board">🏆 RANKING</button>
+      <button class="btn" data-act="open-shop">🛒 LOJA DE ALMAS</button>
+      <button class="btn" data-act="open-tree">🌳 ÁRVORE DE HABILIDADES</button>
+      <button class="btn" data-act="open-how">📜 COMO JOGAR</button>
+      <button class="btn small" data-act="toggle-mute" id="muteBtn">
         🔊 Som: ligado
       </button>
+
       <div class="credit">
-        30 poderes · árvore de 9 constelações · 14 tipos de inimigo · 4 chefes
-        💜
+        290 ondas em 10 atos · 16 classes · 49 poderes e relíquias ·
+        100+ tipos de inimigo · 10 chefes · tem final 💜
       </div>
     </div>
 
+    <!-- ================= ESCOLHA DE CLASSE ================= -->
     <div id="classSel" class="screen hidden">
       <h2 class="tit" id="csTitle">ESCOLHA SUA CLASSE</h2>
-      <div class="sub">cada classe tem habilidade e passiva únicas</div>
+      <div class="sub">16 classes, cada uma com habilidade e passiva únicas</div>
+
+      <!-- começar de um ato já vencido (checkpoint) -->
+      <div id="actPick" class="hidden">
+        <div class="sub" style="margin-top: 6px">começar do ato:</div>
+        <div id="actRow" class="row" style="gap: 6px; flex-wrap: wrap"></div>
+      </div>
+
       <div class="grid" id="csGrid"></div>
-      <button
-        class="btn small"
-        onclick="
-          showScreen('menu');
-          updateMenu();
-        "
-      >
-        ← voltar
-      </button>
+      <button class="btn small" data-act="to-menu">← voltar</button>
     </div>
 
+    <!-- ================= MULTIPLAYER ================= -->
     <div id="online" class="screen hidden">
       <h2 class="tit">🌐 MULTIPLAYER ONLINE</h2>
-      <div class="sub">relay PHP local · servidores MQTT públicos</div>
-      <div
-        class="panel"
-        style="max-width: 560px; text-align: center; margin-top: 10px"
-      >
-        <div class="row" style="margin-bottom: 10px">
-          <label class="chip"><input type="radio" name="netmode" id="nmWebRTC" value="webrtc" /> 🔴 LAN direta (WebRTC)</label>
-          <label class="chip"
-            ><input type="radio" name="netmode" id="nmPhp" value="php" /> 🖥️
-            servidor PHP (XAMPP/LAN)</label
-          >
-          <label class="chip"
-            ><input
-              type="radio"
-              name="netmode"
-              id="nmInet"
-              value="inet"
-              checked
-            />
-            🌐 internet (MQTT)</label
-          >
+      <div class="sub">crie uma sala e passe o código, ou entre numa existente</div>
+
+      <div class="panel" style="max-width: 620px; text-align: center; margin-top: 10px">
+        <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+          <label class="chip">
+            <input type="radio" name="netmode" id="nmWebRTC" value="webrtc" checked />
+            ⚡ Conexão direta (WebRTC) — recomendado
+          </label>
+          <label class="chip">
+            <input type="radio" name="netmode" id="nmPhp" value="php" />
+            🖥️ Servidor PHP (XAMPP/LAN)
+          </label>
+          <label class="chip">
+            <input type="radio" name="netmode" id="nmInet" value="inet" />
+            🌐 Internet (MQTT)
+          </label>
         </div>
+
+        <div class="row"><label>Modo da sala: <select id="onlineMode"><option value="online">Co-op</option><option value="pvp">PVP</option></select></label></div>
         <div id="phpBadge" class="hintbar">🔎 testando relay.php...</div>
-        <button class="btn gold" onclick="createRoom()">🏰 CRIAR SALA</button>
+
+        <button class="btn gold" data-act="create-room">🏰 CRIAR SALA</button>
         <div style="margin: 10px 0; color: #8f7fc0">— ou —</div>
+
         <div class="row">
-          <input
-            class="code"
-            id="joinCode"
-            maxlength="5"
-            placeholder="CÓDIGO"
-          />
-          <button class="btn small" onclick="joinRoom()">🔑 Entrar</button>
+          <input class="code" id="joinCode" maxlength="5" placeholder="CÓDIGO" />
+          <button class="btn small" data-act="join-room">🔑 Entrar</button>
         </div>
-        <div
-          id="onlineStatus"
-          style="
-            margin-top: 12px;
-            color: #b9a8ff;
-            font-size: 15px;
-            min-height: 22px;
-          "
-        >
+
+        <div id="onlineStatus" class="netstatus">
           escolha criar ou entrar numa sala
         </div>
+
         <div class="row">
-          <button class="btn small" onclick="cancelNet()">
-            ✖ cancelar conexão
-          </button>
-          <button class="btn small" onclick="leaveOnline()">← voltar</button>
+          <button class="btn small" data-act="cancel-net">✖ cancelar conexão</button>
+          <button class="btn small" data-act="leave-online">← voltar</button>
         </div>
       </div>
     </div>
 
+    <!-- ================= LOBBY ================= -->
     <div id="lobby" class="screen hidden">
       <h2 class="tit">🏰 SALA DE GRUPO</h2>
-      <div class="sub">código da sala:</div>
+      <div class="sub" id="lobbyMode"></div>
+      <div class="sub" id="lobbyRole">você é o HOST</div>
+
+      <div class="sub">passe este código para o outro jogador:</div>
       <div class="lobbycode" id="lobbyCode">-----</div>
+      <button class="btn small" data-act="copy-code">📋 copiar código</button>
+
       <div class="sub" id="lobbyStatus">aguardando jogador...</div>
+      <div class="netstatus" id="lobbyStatus2"></div>
+      <div class="sub">conexão: <b id="lobbyTransport">—</b></div>
+
+      <div class="sub" style="margin-top: 10px">escolha sua classe:</div>
       <div class="grid" id="lobbyGrid"></div>
-      <button class="btn gold hidden" id="btnStartOnline" onclick="hostStart()">
+
+      <button class="btn gold hidden" id="btnStartOnline" data-act="host-start">
         ⚔️ INICIAR RUN
       </button>
-      <button class="btn small" onclick="leaveOnline()">← sair da sala</button>
+      <button class="btn small" data-act="leave-online">← sair da sala</button>
     </div>
 
+    <!-- ================= ÁRVORE ================= -->
     <div id="tree" class="screen hidden">
       <h2 class="tit">🌳 ÁRVORE DE HABILIDADES</h2>
       <div class="sub">
-        9 constelações · 3 caminhos por nível · 10 níveis de profundidade
+        9 constelações · 364 nós por atributo · 5 camadas de ramificações
       </div>
-      <div class="stat">💠 Fragmentos: <b id="treeFrags">0</b></div>
+      <div class="stat">💜 Almas: <b id="treeSouls">0</b></div>
       <div class="hintbar">
-        ganhe fragmentos limpando ondas (+1) e derrotando chefes (+3) · caminhos
-        irmãos se bloqueiam para sempre!
+        Compre os três ramos de cada nó com almas. Apenas especializações sinalizadas
+        bloqueiam umas às outras. Os preços crescem com a profundidade.
       </div>
-      <div
-        id="treeWrap"
-        class="panel"
-        style="
-          max-width: 920px;
-          width: 100%;
-          margin-top: 12px;
-          text-align: center;
-        "
-      ></div>
-      <button
-        class="btn small"
-        onclick="
-          showScreen('menu');
-          updateMenu();
-        "
-      >
-        ← voltar
-      </button>
+      <div id="treeWrap" class="panel treewrap"></div>
+      <button class="btn small" data-act="to-menu">← voltar</button>
     </div>
 
+    <!-- ================= RANKING ================= -->
     <div id="board" class="screen hidden">
       <h2 class="tit">🏆 RANKING</h2>
       <div class="sub" id="boardSrc">carregando...</div>
-      <div
-        class="panel"
-        id="boardList"
-        style="max-width: 660px; width: 100%"
-      ></div>
-      <button
-        class="btn small"
-        onclick="
-          showScreen('menu');
-          updateMenu();
-        "
-      >
-        ← voltar
-      </button>
+      <div class="panel" id="boardList" style="max-width: 660px; width: 100%"></div>
+      <button class="btn small" data-act="to-menu">← voltar</button>
     </div>
 
+    <!-- ================= LOJA ================= -->
     <div id="shop" class="screen hidden">
       <h2 class="tit">🛒 LOJA DE ALMAS</h2>
-      <div class="sub">melhorias permanentes entre runs</div>
+      <div class="sub">Melhorias permanentes e reservas para a próxima run · não se aplicam ao PVP</div>
       <div class="stat">💜 Almas: <b id="shopSouls">0</b></div>
       <div class="grid" id="shopGrid"></div>
-      <button
-        class="btn small"
-        onclick="
-          showScreen('menu');
-          updateMenu();
-        "
-      >
-        ← voltar
-      </button>
+      <button class="btn small" data-act="to-menu">← voltar</button>
     </div>
 
+    <!-- ================= COMO JOGAR ================= -->
     <div id="how" class="screen hidden">
       <h2 class="tit">📜 COMO JOGAR</h2>
       <div class="panel howbox">
         <p>
-          🎯 Sobreviva às ondas. A cada onda limpa, sorteia
-          <b>3 poderes de 30</b>. A cada 5 ondas vem um
-          <b>CHEFE diferente</b> (Devorador invoca aliados, Carrasco dá
-          investidas, o Vazio teleporta!).
+          🎯 Sobreviva às ondas. A cada onda limpa você escolhe
+          <b>1 poder entre 3</b>. A cada 5 ondas vem um <b>CHEFE</b> e uma
+          <b>relíquia</b>. São <b>290 ondas</b> — 10 atos de 29, um por ano
+          desde que a cobrinha original saiu. Na <b>onda 290</b> espera o
+          <b>Devorador de Mundos</b>: derrote-o e o jogo tem fim (com almas em
+          dobro).
         </p>
         <p>
-          🕹️ <span class="kbd">WASD</span>/<span class="kbd">setas</span> mover
-          · <span class="kbd">E</span> habilidade ·
-          <span class="kbd">P</span> ver poderes da run ·
-          <span class="kbd">espaço</span> pausa.
+          🕹️ <span class="kbd">WASD</span>/<span class="kbd">setas</span> mover ·
+          <span class="kbd">E</span> habilidade ·
+          <span class="kbd">P</span> ver poderes ·
+          <span class="kbd">T</span> status ·
+          <span class="kbd">espaço</span> pausa. Abrir poderes ou status
+          <b>pausa o jogo</b>.
         </p>
         <p>
-          👁️ Projéteis inimigos <b>só acertam a cabeça</b>. Novos inimigos:
-          <b>Cisor</b> se divide ao morrer, <b>Órbita</b> gira ao seu redor, o
-          <b> Franco</b> mira com uma linha vermelha, o <b>Clero</b> cura os
-          outros e o <b>Ímpeto</b> dá investidas.
+          👁️ Projéteis inimigos <b>só acertam a cabeça</b>. O
+          <b>Franco-atirador</b> mostra uma linha de mira <b>antes</b> de atirar
+          — dá pra desviar. O <b>Guardião</b> protege quem está perto, o
+          <b>Clero</b> cura, o <b>Bombardeiro</b> explode ao morrer e o
+          <b>Tecelão</b> anda em zigue-zague.
         </p>
         <p>
-          🌳 <b>Árvore:</b> gaste 💠 Fragmentos nas 9 constelações. Cada escolha
-          abre 3 caminhos e <b>bloqueia os outros dois</b> — monte sua build até
-          10 níveis de profundidade. Os bônus têm teto pra manter o jogo justo.
+          💪 A cada <b>10 ondas</b> os inimigos comuns são substituídos por
+          versões <b>veteranas</b> e depois <b>abissais</b>, com padrões de
+          ataque diferentes — não só mais vida.
         </p>
         <p>
-          🌐 <b>Online:</b> no XAMPP use 🖥️ PHP (menor lag). No Netlify use 🌐
-          MQTT. O ping aparece no HUD.
+          🌳 <b>Árvore:</b> gaste 💜 almas nas 9 constelações. Cada nó
+          abre 3 caminhos compráveis. <b>Especializações indicadas podem ser incompatíveis</b>. Os bônus têm rendimento decrescente pra
+          manter o jogo justo.
         </p>
         <p>
-          ⚖️ Toda cura tem um pequeno intervalo — imortalidade não existe mais
-          😉
+          🌐 <b>Online:</b> ⚡ WebRTC é o mais rápido (conexão direta entre os
+          dois navegadores). 🖥️ PHP funciona sem internet, só com o XAMPP na
+          rede local. 🌐 MQTT funciona em qualquer lugar, com mais lag. O ping
+          aparece no HUD.
         </p>
+        <p>⚖️ Toda cura tem um pequeno intervalo — imortalidade não existe 😉</p>
       </div>
-      <button
-        class="btn small"
-        onclick="
-          showScreen('menu');
-          updateMenu();
-        "
-      >
-        ← voltar
-      </button>
+      <button class="btn small" data-act="to-menu">← voltar</button>
     </div>
 
+    <!-- ================= JOGO ================= -->
     <div id="game" class="screen hidden">
       <div id="hud">
         <div id="hudL" class="row"></div>
@@ -255,87 +241,113 @@
           <div class="abwrap" id="abWrap"></div>
         </div>
       </div>
+
+      <!-- ===== HUD DO PVP (fase 3) =====
+           É um bloco SEPARADO do #hud em vez de uma reescrita dele: o HUD da
+           campanha tem filhos que outras partes do código procuram por id
+           (#abWrap, #bossBar, #hudCombo). Trocar o innerHTML deles no PVP
+           deixaria esses ids mortos ao voltar para a campanha. -->
+      <div id="pvpHud" class="hidden">
+        <div class="pvpSide" id="pvpP1"></div>
+        <div class="pvpMid">
+          <div class="pvpClock" id="pvpClock">20:00</div>
+          <div class="pvpStacks" id="pvpStacks">👹 x0</div><div id="pvpNet" class="pvpnet"></div>
+        </div>
+        <div class="pvpSide right" id="pvpP2"></div>
+      </div>
+
       <div id="cwrap">
         <canvas id="cv"></canvas>
+
+        <!-- ===== CONTROLES DE TOQUE (fase 3) =====
+             Fica ABAIXO dos .ov no empilhamento: com a pausa aberta o dedo
+             precisa acertar os botões do menu, não o joystick por baixo. -->
+        <div id="touchUI" class="hidden">
+          <div id="tStickZone">
+            <div id="tStick">
+              <div id="tStickBase"></div>
+              <div id="tStickKnob"></div>
+            </div>
+            <div id="tStickHint">🕹️ arraste para virar</div>
+          </div>
+          <div id="tBtns">
+            <button class="tbtn ab" data-touch="ab" title="habilidade">✨</button>
+            <button class="tbtn ab2 hidden" id="tAb2" data-touch="ab2" title="habilidade do J2">🔸</button>
+            <button class="tbtn item hidden" id="tItem" data-touch="item" title="item (PVP)">🎒</button>
+            <button class="tbtn" data-touch="powers" title="poderes">📜</button>
+            <button class="tbtn" data-touch="stats" title="status">📊</button>
+            <button class="tbtn" data-touch="pause" title="pausa">⏸️</button>
+          </div>
+        </div>
+
         <div id="banner">
           <div id="bannerT"></div>
           <div id="bannerS"></div>
         </div>
+
+        <!-- barra de vida do chefe: o NOME dele aparece aqui -->
+        <div id="bossBar" class="hidden">
+          <div id="bossName"></div>
+          <div id="bossTrack"><div id="bossFill"></div></div>
+        </div>
+
+        <div id="pvpChoices" aria-live="polite"></div>
+
+        <!-- escolha de poder -->
         <div id="upOv" class="ov hidden">
           <h2 class="tit" id="upTitle">ESCOLHA UM PODER</h2>
           <div class="cards" id="upCards"></div>
-          <div
-            id="upWait"
-            class="hidden"
-            style="margin-top: 14px; color: #7dff5e"
-          >
+          <div id="upExtra" class="row" style="margin-top: 12px"></div>
+          <div id="upWait" class="hidden" style="margin-top: 14px; color: #7dff5e">
             Aguardando o outro jogador...
           </div>
         </div>
-        <div id="powersOv" class="ov hidden">
-          <h2 class="tit">✨ PODERES DA RUN</h2>
-          <div id="powersList" style="max-width: 660px; text-align: left"></div>
-          <button class="btn small" onclick="togglePowers()">fechar (P)</button>
-        </div>
+
+        <!-- pausa -->
         <div id="pauseOv" class="ov hidden">
           <h2 class="tit">⏸️ PAUSADO</h2>
           <div id="pauseBtns">
-            <button
-              class="btn gold"
-              onclick="
-                this.blur();
-                togglePause();
-              "
-            >
-              Continuar</button
-            ><button
-              class="btn"
-              onclick="
-                this.blur();
-                togglePowers();
-              "
-            >
-              📜 Poderes da run</button
-            ><button
-              class="btn"
-              onclick="
-                this.blur();
-                abandon();
-              "
-            >
-              🏳️ Abandonar run
-            </button>
+            <button class="btn gold" data-act="toggle-pause">Continuar</button>
+            <button class="btn" data-act="toggle-powers">📜 Poderes da run</button>
+            <button class="btn" data-act="toggle-stats">📊 Status</button>
+            <button class="btn" data-act="abandon">🏳️ Abandonar run</button>
           </div>
-          <div id="pauseGuest" class="hidden">
-            o host pausou o jogo... (P mostra os poderes)
+          <div id="pauseGuest">
+            o host pausou o jogo... (<span class="kbd">P</span> poderes ·
+          <span class="kbd">T</span> status)
           </div>
         </div>
+
+        <!-- poderes: fica ACIMA da pausa, e não despausa o jogo -->
+        <div id="powersOv" class="ov reader hidden">
+          <h2 class="tit">✨ PODERES DA RUN</h2>
+          <div id="powersList" class="readerbody"></div>
+          <button class="btn small" data-act="toggle-powers">fechar (P)</button>
+        </div>
+
+        <!-- status: atributos do jogador, tecla T -->
+        <div id="statsOv" class="ov reader hidden">
+          <h2 class="tit">📊 STATUS</h2>
+          <div id="statsList" class="readerbody"></div>
+          <button class="btn small" data-act="toggle-stats">fechar (T)</button>
+        </div>
       </div>
+
       <div class="hintbar" id="ctrlHint"></div>
     </div>
 
+    <!-- ================= FIM ================= -->
     <div id="over" class="screen hidden">
-      <div class="big">💀</div>
-      <h2 class="tit">FIM DE JOGO</h2>
+      <div class="big" id="overBig">💀</div>
+      <h2 class="tit" id="overTitle">FIM DE JOGO</h2>
       <div class="panel" id="overStats"></div>
-      <button
-        class="btn gold"
-        onclick="
-          toMenu();
-          gotoClass(lastMode === 'local' ? 'local' : 'solo');
-        "
-      >
-        ⚔️ Nova Run
-      </button>
-      <button class="btn" onclick="openBoard()">🏆 Ver Ranking</button>
-      <button class="btn" onclick="toMenu()">🏠 Menu</button>
+      <button class="btn gold" data-act="again">⚔️ Nova Run</button>
+      <button class="btn" data-act="open-board">🏆 Ver Ranking</button>
+      <button class="btn" data-act="to-menu">🏠 Menu</button>
     </div>
 
     <div id="toast"></div>
 
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="data.js"></script>
-    <script src="net.js"></script>
-    <script src="game.js"></script>
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>
