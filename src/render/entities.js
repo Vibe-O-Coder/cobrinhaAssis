@@ -444,7 +444,7 @@ export function drawPlayer(p) {
 
 /** Barra de chefe — fica no espaço da TELA, não do mundo. */
 export function drawBossBar(v) {
-  const bosses = v.enemies.filter((e) => isBoss(e.type));
+  const bosses = v.enemies.filter((e) => e.hp > 0 && isBoss(e.type));
   if (!bosses.length) return;
 
   // No PVP em tela dividida cada metade tem ~558px: uma barra de 360 fixos
@@ -467,15 +467,26 @@ export function drawBossBar(v) {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x - 2.5, y - 2.5, w + 5, 15);
 
+    ctx.font = "bold 9px Rajdhani";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#16091f";
+    ctx.lineWidth = 2;
+    const hpText = Math.ceil(b.hp) + " / " + b.mhp;
+    ctx.strokeText(hpText, VP.w/2, y+5);
+    ctx.fillText(hpText, VP.w/2, y+5);
+
     const en = b.enraged || b.hp < b.mhp * 0.5;
     ctx.font = "bold 12px Orbitron";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = en ? "#ff5d7f" : "#ffd75e";
     ctx.fillText(
-      bossName(b.type) + (en ? " ENFURECIDO" : ""),
+      bossName(b.type) + (en ? " · FASE " + ((b.bossPhase || 1) + 1) : ""),
       VP.w / 2,
       y + 24,
+      w,
     );
     y += 40;
   }

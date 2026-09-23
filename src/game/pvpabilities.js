@@ -7,6 +7,9 @@ import { foeOf, pvpHit, pvpBounds, wrapX, wrapY } from './pvp.js';
 import { dist } from '../core/utils.js';
 import { shockwave, ring, addParts, addText, shieldFx, beam, bombWarning } from '../render/fx.js';
 import { cleanupEnemies, slowEnemy } from './enemies.js';
+import { useGamble } from './gambler.js';
+import { applyUltimate } from './ultimates.js';
+import { ultimateCooldown } from '../data/ultimates.js';
 
 export const PVP_ABILITIES = [
   ['Giro Mortal',10,'Golpe próximo, dano e pressão em área.'],
@@ -20,7 +23,7 @@ export const PVP_ABILITIES = [
   ['Zero Absoluto',14,'Dano em área e lentidão de 20% por 2 segundos.'],
   ['Brotar',14,'Recupera corpo e dispara cinco projéteis em leque.'],
   ['Chocalho',12,'Onda na cauda que causa dano e desacelera.'],
-  ['Fase Ectoplasmática',16,'Atravessa golpes e corpos por 1,5 segundo.'],
+  ['Dado do Destino',20,'Dado de 1 a 10: risco de ficar com 1 HP; prêmios crescem até cura, explosão e 2 poderes.'],
   ['Banquete',16,'Recupera 3 segmentos e até 2 de vida.'],
   ['Torre Pesada',16,'Torre temporária que também mira no adversário.'],
   ['Trovoada',14,'Raio anunciado na posição do adversário próximo.'],
@@ -48,7 +51,7 @@ function pulse(p,x,y,r,damage,slow=0) {
 }
 export function usePvpAbility(p) {
   const h=headPx(p), foe=foeOf(p), damage=2.4+Math.min(3,p.level*0.08);
-  p.abT=p.abCd;
+  p.abT=ultimateCooldown(p);
   addParts(h.x,h.y,p.color,30,3); ring(h.x,h.y,90,p.color,5);
   addText(h.x,h.y-35,PVP_ABILITIES[p.cls][0],p.color,1,16);
   S.shake=Math.min(12,S.shake+5);
@@ -72,7 +75,7 @@ export function usePvpAbility(p) {
     case 8: pulse(p,h.x,h.y,240,damage,2); break;
     case 9: p.grow+=3; salvo(p,5,0.65); break;
     case 10: { const t=p.cells.at(-1);pulse(p,(t[0]+0.5)*CELL,(t[1]+0.5)*CELL,240,damage,1.5);break; }
-    case 11: p.phaseT=1.5; p.iframes=1.5; break;
+    case 11: useGamble(p,true); break;
     case 12: p.grow+=Math.max(0,Math.min(3,18-p.cells.length-p.grow));heal(p,2);pulse(p,h.x,h.y,150,damage);break;
     case 13:
       if(p.turrets.length>=3) p.turrets.shift();
@@ -91,4 +94,5 @@ export function usePvpAbility(p) {
       p.iframes=0.6; const n=headPx(p);ring(n.x,n.y,200,p.color,7);break;
     }
   }
+  applyUltimate(p,true);
 }

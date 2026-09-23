@@ -99,8 +99,8 @@ export function startRun(clsList, m, waveInicial) {
   }
 
   setHint();
-  // checkpoint de ato: a run pode começar no primeiro wave de um ato vencido
-  startWave(Math.max(1, waveInicial || 1));
+  // Toda campanha constrói a progressão desde a primeira onda.
+  startWave(1);
 }
 
 /* Credita almas e recordes.

@@ -22,6 +22,7 @@ import { $ } from "../core/utils.js";
 import { S } from "../core/state.js";
 import { save } from "../core/save.js";
 import { CLASSES } from "../data/classes.js";
+import { ULTIMATE_PATHS, ultimateDescription } from "../data/ultimates.js";
 import { PVP_UPGRADES } from "../data/pvpupgrades.js";
 import { TREE_STAT_LABELS } from "../data/tree.js";
 import { treeTotals } from "../game/tree.js";
@@ -150,7 +151,7 @@ function powerCards(ids) {
     list
       .map(
         ({ o, n }) =>
-          '<div class="pwcard' + (o.id.startsWith("r_") ? " relic" : "") + '">' +
+          '<div class="pwcard' + (o.id.startsWith("r_") ? " relic" : "") + (o.cls !== undefined ? " class-card" : "") + (o.ultimate ? " ultimate-card" : "") + '">' +
           `<div class="pwtop"><span class="pwic">${o.ic}</span>` +
           `<span class="pwn">${esc(o.n)}</span>` +
           (n > 1 ? `<span class="pwx">${n}x</span>` : "") +
@@ -199,6 +200,7 @@ function renderPowers() {
       return (
         `<div style="margin:12px 0">` +
         `<b style="color:${p.color}">${c.ic || "🐍"} ${esc(c.name || "?")} (J${(p.idx || 0) + 1})</b>` +
+        ultimateSummary(p) +
         powerCards(ids) +
         `</div>`
       );
@@ -206,6 +208,16 @@ function renderPowers() {
     .join("");
 
   $("#powersList").innerHTML = html + treeSummary();
+}
+
+function ultimateSummary(p) {
+  const paths = ULTIMATE_PATHS[p.cls] || [];
+  const chosen = p.ultimate;
+  return '<div class="ultimate-summary"><b>✨ Evolução da habilidade</b>' +
+    (chosen
+      ? `<p>${esc(paths[chosen.branch]?.name || "Ultimate")} · ${chosen.level}/10</p><p>${esc(ultimateDescription(p.cls, chosen.branch, chosen.level, S.mode === "pvp"))}</p>`
+      : `<p>Três caminhos, dez evoluções em cada um: ${paths.map(p => esc(p.name)).join(" · ")}.</p><p>A primeira carta de ultimate define o caminho desta partida.</p>`) +
+    (p.cls === 11 ? `<p>🎲 Último dado: ${p.lastGamble || "—"}. Recebe duas cartas aleatórias por recompensa.</p>` : '') + '</div>';
 }
 
 /* ---------------------------------------------------------------------------

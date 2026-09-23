@@ -17,10 +17,12 @@
 */
 
 import { S } from "../core/state.js";
-import { $, ri } from "../core/utils.js";
+import { $, esc } from "../core/utils.js";
 import { NET_TICK_MS } from "../core/config.js";
 import { CLASSES } from "../data/classes.js";
-import { T, detectPhp } from "./transports.js";
+import { T, LABELS, detectPhp } from "./transports.js";
+import { listRooms, reserveRoom, enterRoom, generatePassword } from "./rooms.js";
+import { bossKind } from "../core/scaling.js";
 import { createSession } from "./session.js";
 import { showScreen, toast } from "../ui/screens.js";
 import { buildClassCards } from "../ui/menu.js";
@@ -38,29 +40,21 @@ import { choosePvpPower } from "../game/pvppicks.js";
 import { DIRMAP } from "../ui/input.js";
 
 let phpOk = false;
+let operation = null, listing = null, roomInfo = null, roomPassword = "", generation = 0;
+
+function setBusy(busy) {
+  for (const action of ['create-room','join-room']) document.querySelector(`[data-act="${action}"]`).disabled = busy;
+}
 
 export async function openOnline() {
   setNetStatus("escolha criar ou entrar numa sala");
   showScreen("online");
 
   const badge = $("#phpBadge");
-  badge.textContent = "🔎 testando relay.php...";
+  badge.textContent = "A conexão é escolhida automaticamente pelo código da sala.";
   phpOk = await detectPhp();
-
-  if (phpOk) {
-    badge.innerHTML =
-      '✔ <b style="color:#7dff5e">relay.php detectado</b> — funciona até sem internet, mas é o modo mais lento.';
-  } else {
-    badge.innerHTML =
-      "ℹ️ relay.php não encontrado (normal fora do XAMPP). ⚡ WebRTC é o recomendado: conexão direta, menor lag.";
-  }
-
-  // Só define o padrão se o jogador ainda não escolheu nada nesta sessão.
-  // Antes esta função sobrescrevia a escolha DEPOIS do await, revertendo o
-  // que a pessoa tinha acabado de marcar.
-  if (!document.querySelector('input[name="netmode"]:checked')) {
-    $("#nmWebRTC").checked = true;
-  }
+  badge.textContent = "Conexão automática entre redes diferentes." + (phpOk ? " Rede local também disponível nas opções avançadas." : "");
+  if (!$('#online').classList.contains('hidden')) refreshRooms();
 }
 
 export function setNetStatus(m) {
@@ -71,10 +65,7 @@ export function setNetStatus(m) {
 }
 
 function randomCode() {
-  const ch = "abcdefghjkmnpqrstuvwxyz23456789";
-  let s = "";
-  for (let i = 0; i < 5; i++) s += ch[ri(0, ch.length - 1)];
-  return s;
+  return generatePassword().slice(0, 6).toUpperCase();
 }
 
 /** Transporte escolhido no rádio. A versão anterior só olhava o #nmPhp e caía
@@ -82,15 +73,57 @@ function randomCode() {
 function chosenKind() {
   if ($("#nmWebRTC").checked) return T.WEBRTC;
   if ($("#nmPhp").checked) return T.PHP;
-  return T.MQTT;
+  if ($("#nmInet").checked) return T.MQTT;
+  return T.RELAY;
+}
+
+function kindFromCode(code) {
+  return ({R:T.RELAY,L:T.PHP,W:T.WEBRTC,M:T.MQTT})[code.split('-')[0]] || chosenKind();
+}
+
+export function generateRoomPassword() {
+  $('#roomVisibility').value = 'private';
+  $('#roomPassword').value = generatePassword();
+  toast('Senha gerada. Ela aparecerá no seu lobby para compartilhar.');
+}
+
+export async function refreshRooms() {
+  listing?.abort(); const current = listing = new AbortController();
+  const status = $('#roomListStatus'), container = $('#roomList');
+  container.replaceChildren();
+  try {
+    const rooms = await listRooms({signal: current.signal, onStatus: text => {status.textContent = text;}});
+    if (current.signal.aborted) return;
+    status.textContent = rooms.length ? 'Escolha uma partida disponível.' : 'Nenhuma partida pública. Crie a primeira!';
+    for (const room of rooms) {
+      const row = document.createElement('div'); row.className = 'room-entry';
+      const info = document.createElement('div');
+      const title = document.createElement('strong'); title.textContent = room.name;
+      const detail = document.createElement('div');
+      detail.textContent = `${room.mode === 'pvp' ? 'PVP' : 'Co-op'} · ${room.players}/2 · ${room.code}${room.started ? ' · em partida' : ''}`;
+      info.append(title,detail);
+      const button = document.createElement('button'); button.className = 'btn small';
+      button.textContent = room.started ? 'Em partida' : room.players >= 2 ? 'Cheia' : 'Entrar';
+      button.disabled = room.started || room.players >= 2;
+      button.addEventListener('click', () => { $('#joinCode').value=room.code; $('#joinPassword').value=''; joinRoom(); });
+      row.append(info,button);container.append(row);
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') status.textContent = error.message;
+  }
 }
 
 function netCbs() {
   return {
     onStatus: setNetStatus,
     onFatal: (m) => {
+      cancelNet(true);
+      if (S.runActive) S.paused = true;
       setNetStatus("❌ " + m);
       toast("❌ " + m);
+    },
+    onReady: () => {
+      if (!S.runActive) showLobby();
     },
     onTransport: (kind, label) => {
       S.transportLabel = label || kind;
@@ -162,25 +195,40 @@ function netCbs() {
   };
 }
 
-export function createRoom() {
+export async function createRoom() {
   S.netMode = $("#onlineMode").value === "pvp" ? "pvp" : "online";
   cancelNet(true);
+  const current = operation = new AbortController(), epoch = generation;
+  setBusy(true);
+  let kind = chosenKind();
+  const privateRoom = $('#roomVisibility').value === 'private';
+  const password = $('#roomPassword').value;
+  try {
+    if (privateRoom && kind !== T.RELAY) throw new Error('Salas privadas usam a conexão automática ou o servidor de partidas.');
+    let ticket;
+    if (kind === T.RELAY) {
+      if (privateRoom && (password.length < 4 || password.length > 64)) throw new Error('Crie uma senha de 4 a 64 caracteres ou use Gerar senha.');
+      ticket = await reserveRoom({name:$('#roomName').value, mode:S.netMode, private:privateRoom, password:privateRoom?password:''}, {signal:current.signal,onStatus:setNetStatus});
+    } else if (kind === T.PHP && !(await detectPhp())) throw new Error('Servidor local indisponível. Os dois dispositivos precisam abrir o jogo no mesmo servidor PHP.');
+    if (current.signal.aborted || epoch !== generation) return;
   S.role = "host";
   S.mode = S.netMode;
-  S.roomCode = randomCode();
+  S.roomCode = ticket?.room.code || ({[T.PHP]:'L-',[T.WEBRTC]:'W-',[T.MQTT]:'M-'}[kind] + randomCode());
+  roomInfo = ticket?.room || {private:false, mode:S.netMode, name:$('#roomName').value};
+  roomPassword = privateRoom ? password : '';
   S.hostCls = S.hostCls || 0;
   S.guestCls = -1;
   S.guestJoined = false;
-
-  // Vai DIRETO pro lobby, com o código em destaque.
-  showLobby();
-  setNetStatus("🏰 sala criada — passe o código para o outro jogador");
-  S.net = createSession(true, S.roomCode, netCbs(), chosenKind());
+  S.transportLabel = LABELS[kind];
+  if (kind !== T.RELAY) showLobby();
+  S.net = createSession(true, S.roomCode, netCbs(), kind, ticket);
+  } catch(error) { if (error.name !== 'AbortError') {setNetStatus(error.message);toast(error.message);} }
+  finally { if(epoch === generation) { operation = null; setBusy(false); } }
 }
 
-export function joinRoom() {
-  const code = ($("#joinCode").value || "").trim().toLowerCase();
-  if (code.length < 4) {
+export async function joinRoom() {
+  const code = ($("#joinCode").value || "").trim().toUpperCase();
+  if (!/^(?:[RLWM]-[A-Z0-9]{6}|[A-Z0-9]{5})$/.test(code)) {
     toast("Digite o código da sala");
     return;
   }
@@ -189,15 +237,31 @@ export function joinRoom() {
     return;
   }
   cancelNet(true);
+  const current = operation = new AbortController(), epoch = generation;
+  setBusy(true);
+  try {
+  const kind = kindFromCode(code);
+  let ticket;
+  if (kind === T.RELAY) ticket = await enterRoom(code,$('#joinPassword').value,{signal:current.signal,onStatus:setNetStatus});
+  else if (kind === T.PHP && !(await detectPhp())) throw new Error('Esse código é de rede local. Abra o mesmo endereço do servidor PHP usado pelo host.');
+  if (current.signal.aborted || epoch !== generation) return;
   S.role = "guest";
-  S.mode = "online";
+  S.netMode = ticket?.room.mode || 'online'; S.mode = S.netMode;
+  roomInfo = ticket?.room || null; roomPassword='';
   S.roomCode = code;
   S.guestCls = -1;
+  S.transportLabel = LABELS[kind];
   setNetStatus("🔑 procurando a sala " + code + "...");
-  S.net = createSession(false, code, netCbs(), chosenKind());
+  S.net = createSession(false, code, netCbs(), kind, ticket);
+  } catch(error) { if (error.name !== 'AbortError') {setNetStatus(error.message);toast(error.message);} }
+  finally {if(epoch===generation) {operation=null;setBusy(false);}}
 }
 
 export function cancelNet(quiet) {
+  generation++;
+  operation?.abort();operation=null;
+  listing?.abort();listing=null;
+  setBusy(false);
   stopNet();
   if (S.net) {
     try {
@@ -206,6 +270,8 @@ export function cancelNet(quiet) {
     S.net = null;
   }
   S.guestJoined = false;
+  roomInfo=null;roomPassword='';
+  if (!quiet && !S.runActive) {S.role='solo';showScreen('online');}
   if (!quiet) setNetStatus("conexão cancelada.");
 }
 
@@ -214,6 +280,9 @@ export function showLobby() {
   $("#lobbyCode").textContent = S.roomCode || "-----";
   $("#lobbyMode").textContent = S.netMode === "pvp" ? "⚔️ PVP · sem bônus permanentes" : "👥 CO-OP";
   $("#lobbyRole").textContent = S.role === "host" ? "você é o HOST" : "você entrou como convidado";
+  $('#lobbyPrivacy').textContent = roomInfo?.private ? '🔒 Sala privada · código e senha' : S.roomCode.startsWith('R-') ? '🌐 Sala pública · visível na lista' : 'Sala por código · fora da lista pública';
+  $('#lobbyPassword').textContent = S.role === 'host' && roomPassword ? 'Senha: '+roomPassword : '';
+  $('#lobbyTransport').textContent = S.transportLabel || 'Conectando…';
   buildClassCards($("#lobbyGrid"), (i) => {
     if (S.role === "guest") {
       S.guestCls = i;
@@ -260,7 +329,8 @@ export function updateLobby() {
 export function copyRoomCode() {
   const code = S.roomCode || "";
   if (!code) return;
-  navigator.clipboard?.writeText(code).then(
+  if (!navigator.clipboard) { toast("código: " + code.toUpperCase()); return; }
+  navigator.clipboard.writeText(code).then(
     () => toast("📋 código " + code.toUpperCase() + " copiado!"),
     () => toast("código: " + code.toUpperCase()),
   );
@@ -287,7 +357,7 @@ function startRunRemote(cls, mode) {
   S.netMode = mode === "pvp" ? "pvp" : "online";
   guestPickKey = null;
   resetSmoothing();
-  startRun(cls, "online");
+  startRun(cls, S.netMode);
   setHint();
 }
 
@@ -436,6 +506,7 @@ export function onNet(d) {
 }
 
 function showGuestPicker(d) {
+  if ((d.automatic || []).includes(1) || (d.picked || []).includes(1)) { showWait(); return; }
   /* Quem morreu durante a onda não participa desta escolha (o host recusa o
      pick com `!st.alive.includes(pi)`). Antes as cartas apareciam mesmo assim,
      clicáveis e com som de confirmação, e a escolha era descartada em silêncio
@@ -454,12 +525,12 @@ function showGuestPicker(d) {
   g.innerHTML = "";
   $("#upWait").classList.add("hidden");
 
-  for (const k of d.opts) {
+  for (const k of (d.optsByPlayer?.[1] || d.opts || [])) {
     const o = pool[k];
     if (!o) continue;
     const c = document.createElement("div");
-    c.className = "card";
-    c.innerHTML = `<div class="ic">${o.ic}</div><h3>${o.n}</h3><p>${o.d}</p>`;
+    c.className = 'card' + (o.cls !== undefined ? ' class-card' : '') + (o.ultimate ? ' ultimate-card' : '');
+    c.innerHTML = `<div class="ic">${o.ic}</div>` + (o.cls !== undefined ? '<span class="class-badge">'+(o.ultimate?'ULTIMATE':'PODER DE CLASSE')+'</span>' : '') + `<h3>${esc(o.n)}</h3><p>${esc(o.d)}</p>`;
     c.addEventListener("click", () => {
       if (S.net) S.net.send({ t: "pick", k });
       showWait();
@@ -483,7 +554,7 @@ function reconcileGuestPick(rs) {
   }
   const jaEscolheu = (p.picked || []).includes(1);
   const participa = Array.isArray(p.alive) && p.alive.includes(1);
-  const key = p.opts.join(",") + "|" + p.relic + "|" + jaEscolheu + "|" + participa;
+  const key = (p.optsByPlayer?.[1] || p.opts || []).join(",") + "|" + p.relic + "|" + jaEscolheu + "|" + participa;
   if (key === guestPickKey) return; // nada mudou, não repinta
   guestPickKey = key;
 
@@ -491,7 +562,7 @@ function reconcileGuestPick(rs) {
     showWait();
     $("#upOv").classList.remove("hidden");
   } else {
-    showGuestPicker({ opts: p.opts, relic: p.relic, alive: p.alive });
+    showGuestPicker(p);
   }
 }
 
@@ -502,8 +573,8 @@ function guestFx() {
 
   if (!isPvp() && rs.wave !== S.gPrev.wave && rs.phase === "play") {
     banner(
-      rs.wave % 5 === 0 ? "⚠️ CHEFE ⚠️" : "ONDA " + rs.wave,
-      rs.wave % 5 === 0 ? "prepare-se..." : rs.mod ? rs.mod.n + " — " + rs.mod.d : "",
+      bossKind(rs.wave) ? "⚠️ CHEFE ⚠️" : "ONDA " + rs.wave,
+      bossKind(rs.wave) ? "prepare-se..." : rs.mod ? rs.mod.n + " — " + rs.mod.d : "",
     );
   }
 

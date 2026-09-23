@@ -35,7 +35,9 @@ Se o Windows pedir acesso à rede, permita na sua rede privada.
 
 ## Publicando no Netlify
 
-O site é estático; só o ranking precisa de servidor.
+O jogo é estático; o ranking usa Netlify Functions e o multiplayer automático usa
+o servidor de salas no Render. Para atualizar as duas partes, siga
+[o guia do Render e Netlify](comece-aqui-render.md).
 
 1. Suba a pasta para um repositório Git e conecte no Netlify (ou arraste a pasta em
    `app.netlify.com/drop`).
@@ -63,12 +65,18 @@ O co-op e o PVP funcionam **localmente e online/LAN**. No mesmo computador a
 arena tem duas câmeras lado a lado; em rede cada computador acompanha seu jogador.
 
 Na tela **Multiplayer Online**, quem cria a sala escolhe **Co-op** ou **PVP**,
-seleciona a conexão e compartilha o código. O convidado escolhe a classe e o host
-inicia a partida.
+nome e visibilidade. Salas públicas aparecem na lista; privadas exigem código e
+senha criada pelo host ou gerada pelo jogo. O convidado escolhe a classe e o host
+inicia a partida. A senha é verificada no servidor, e a sala privada não é listada.
+
+**Automático** é o padrão: inicia o servidor quando necessário e usa o relay
+WebSocket. Ao entrar por código, o jogo identifica a conexão da sala. Os modos
+legados continuam nas opções avançadas.
 
 | Conexão | Funcionamento |
 |---|---|
-| **WebRTC** | Dados diretamente entre navegadores; usa internet na sinalização inicial. Opção preferida. Redes que impedem a conexão direta podem exigir outra opção. |
+| **Automático / servidor de partidas** | Lista de salas, códigos exclusivos e senha. Transmite os dados pelo Render, sem exigir conexão direta entre os dispositivos. |
+| **WebRTC (avançado)** | Negocia conexão entre navegadores; redes restritivas podem exigir TURN. |
 | **PHP / XAMPP** | Relay na rede local, sem necessidade de internet. Os dois computadores precisam abrir o mesmo endereço do servidor, por exemplo o IP LAN de quem hospeda. |
 | **MQTT** | Relay público pela internet. Alternativa quando a conexão direta não funciona; a distância até o broker influencia o ping. |
 
@@ -169,21 +177,29 @@ Em produção esse objeto não existe.
 
 ## Conteúdo
 
-- **16 classes**, cada uma com passiva, habilidade e **carta exclusiva** próprias — do
-  Berserker que perde o controle da cobra ao Cronomante que rebobina 3 segundos
-- **10 atos de 29 ondas**, cada um com paleta, elenco e chefe da sua "era". Vencer o
-  chefe de um ato **libera começar dele** numa run futura
+- **16 classes**, com passivas, habilidades e cartas exclusivas. O **Apostador**
+  substitui o Espectral: recebe duas cartas aleatórias por recompensa e lança um
+  dado de dez resultados; o pior deixa 1 HP (meio coração).
+- **3 caminhos de ultimate por classe, com 10 evoluções cada**: 480 cartas de
+  especialização, com versões ajustadas para PVP. Escolher um caminho exclui os
+  outros durante aquela run; nível X adiciona um golpe final reforçado.
+- **10 atos de 29 ondas**, cada um com paleta, elenco e chefe da sua era. Toda
+  campanha começa na onda 1; o maior ato alcançado permanece registrado.
 - **9 constelações** com **cinco camadas** além da raiz e 364 nós cada
   (três filhos por nó; bloqueios apenas nas especializações sinalizadas)
-- **54 poderes** e **11 relíquias** que **acumulam**, têm **pré-requisitos** e param de
-  aparecer quando o atributo chega ao teto
-- **101 tipos de inimigo**: 15 bases × 6 tiers (veterano → abissal → infernal →
-  primordial → corrompido), mais **6 afixos** combináveis que mudam o comportamento
-- **10 chefes** nomeados, com moveset telegrafado e **brecha de punição** — todo golpe
-  pesado deixa o chefe exposto a 50% mais dano
+- Poderes e relíquias com pré-requisitos e limites. Cartas de classe têm borda
+  própria; ultimates têm borda dourada dupla e exibem caminho e evolução.
+- Hordas de até **200 inimigos**, novos morteiros, sentinelas e perseguidores,
+  variantes por tier e afixos. A frequência e os lotes de nascimento aumentam;
+  a vida considera a onda e o poder ofensivo da equipe.
+- **10 chefes** com padrões próprios, ataques anunciados e fases protegidas contra
+  morte instantânea. Chefes conhecidos voltam em duplas e trios, inclusive em
+  grupos mistos, com proteção e ataques coordenados por proximidade.
+- **Minimapa** na campanha e no PVP, incluindo alvos fora da câmera no multiplayer.
 - **Modos difícil e impossível**, **AFK** e **2x velocidade**
-- **Final de verdade**: derrote o Devorador de Mundos na onda 290 e a run termina em
-  vitória, com almas em dobro
+- **Devorador de Mundos** gigante e fixo no alto de uma arena sem paredes fatais:
+  sair por uma borda leva à oposta. Tem três fases, lasers, corredores seguros e
+  ataques próprios; vencê-lo na onda 290 encerra a campanha.
 
 ---
 
@@ -196,19 +212,23 @@ npm test
 npm run check
 ```
 
-Para os testes de interface e rede, instale as dependências de desenvolvimento,
-inicie o servidor PHP na porta 8123 e execute:
+Para os testes de interface e rede, instale as dependências, inicie o servidor PHP
+na porta 8123 e o servidor de salas na porta 9000 (em `peer-server`, rode `npm ci`
+e `npm start`). Depois execute na raiz do projeto:
 
 ```bash
 npm install
+npm run test:rooms
 npm run test:browser
 npm run test:network
+npm run test:expansion
 ```
 
 Os testes usam Edge em segundo plano e perfis isolados, sem alterar o save do seu
-navegador. "test:network" inclui WebRTC real e precisa de acesso à sinalização e ao
-CDN do PeerJS. Resultados e capturas ficam em "tests/artifacts". A validação e suas
-limitações estão em [docs/FASE3_VALIDACAO.md](docs/FASE3_VALIDACAO.md).
+navegador. Os testes de rede usam PHP e o relay local; a expansão também cobre
+as 48 especializações em campanha/PVP, bosses, salas e telas de celular. Resultados
+e capturas ficam em `tests/artifacts`. A validação desta atualização está em
+[docs/ATUALIZACAO_SALAS_E_COMBATE.md](docs/ATUALIZACAO_SALAS_E_COMBATE.md).
 
 ## Licença
 

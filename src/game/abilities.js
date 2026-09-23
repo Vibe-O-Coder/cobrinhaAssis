@@ -16,6 +16,8 @@ import { cleanupEnemies } from "./enemies.js";
 
 import { isPvp } from "./pvp.js";
 import { usePvpAbility } from "./pvpabilities.js";
+import { applyUltimate } from './ultimates.js';
+import { ultimateCooldown } from '../data/ultimates.js';
 
 export function tryAbility(p) {
   if (S.phase !== "play" || S.paused || !S.runActive) return;
@@ -29,6 +31,7 @@ export function tryAbility(p) {
     (d≈5) isso dava um deslocamento de ~1500px e arremessava o bicho para fora
     do mapa. Agora o vetor é normalizado uma vez só. */
 function knockback(e, ox, oy, force) {
+  if (e.anchored) return;
   const d = dist(ox, oy, e.x, e.y) || 1;
   const ux = (e.x - ox) / d;
   const uy = (e.y - oy) / d;
@@ -45,13 +48,14 @@ function hurt(e, dmg, p) {
 export function useAbility(p) {
   if (isPvp()) { sfx("ab"); usePvpAbility(p); return; }
   const Hh = headPx(p);
-  p.abT = p.abCd;
+  p.abT = ultimateCooldown(p);
   sfx("ab");
 
   /* As seis classes originais são um efeito instantâneo e ficam aqui.
      As dez novas têm estado que evolui entre frames e moram em classes.js. */
   if (p.cls >= 6) {
     classAbility(p);
+    applyUltimate(p);
     return;
   }
 
@@ -70,7 +74,7 @@ export function useAbility(p) {
         if (e.hp <= 0) continue;
         const d = dist(Hh.x, Hh.y, e.x, e.y);
         if (d < R + e.r) {
-          hurt(e, 4 + p.boom * 0.3, p);
+          hurt(e, bulletDmg(p) * 5 + p.boom * 0.3, p);
           // força maior quanto mais perto, mas limitada
           knockback(e, Hh.x, Hh.y, clamp(((R - d) / R) * 90, 10, 90));
           addParts(e.x, e.y, (EDEF[e.type] || {}).c || "#ff5d7f", 8);
@@ -92,7 +96,7 @@ export function useAbility(p) {
           x: Hh.x, y: Hh.y,
           vx: Math.cos(a) * 450,
           vy: Math.sin(a) * 450,
-          dmg: bulletDmg(p) * 1.3 * (crit ? p.critDmg : 1),
+          dmg: bulletDmg(p) * 2.2 * (crit ? p.critDmg : 1),
           pierce: p.pierce + 1,
           venom: p.venom,
           ls: p.ls,
@@ -131,7 +135,7 @@ export function useAbility(p) {
       for (const e of S.enemies) {
         if (e.hp <= 0) continue;
         if (dist(Nh.x, Nh.y, e.x, e.y) < 110 + e.r) {
-          hurt(e, 3 + p.venom * 0.2, p);
+          hurt(e, bulletDmg(p) * 5 + p.venom * 0.2, p);
           e.dot = Math.max(e.dot, Math.max(1, p.venom * 0.5));
           e.dotT = 2.4;
         }
@@ -170,7 +174,7 @@ export function useAbility(p) {
       for (const e of S.enemies) {
         if (e.hp <= 0) continue;
         if (dist(Hh.x, Hh.y, e.x, e.y) < R + e.r) {
-          hurt(e, 3 + p.venom * 0.3, p);
+          hurt(e, bulletDmg(p) * 4 + p.venom * 0.3, p);
           hits++;
           drain(e.x, e.y, Hh.x, Hh.y, "#b04dff");
         }
@@ -196,7 +200,7 @@ export function useAbility(p) {
         if (e.hp <= 0) continue;
         const d = dist(Hh.x, Hh.y, e.x, e.y);
         if (d < 120 + e.r) {
-          hurt(e, 2, p);
+          hurt(e, bulletDmg(p) * 3, p);
           knockback(e, Hh.x, Hh.y, 55);
         }
       }
@@ -206,7 +210,7 @@ export function useAbility(p) {
 
     /* 💣 Bombardeiro — Bomba Ambulante (BUFFADO) */
     case 5: {
-      const dmg = 8 + p.boom * 0.9;
+      const dmg = bulletDmg(p) * 8 + p.boom * 0.9;
       const r = 140 + p.boomR * 0.5;
       // 🧨 Carga Dupla: bombas extras caem em volta
       const nb = 1 + (p.xBomb || 0);
@@ -219,4 +223,5 @@ export function useAbility(p) {
       break;
     }
   }
+  applyUltimate(p);
 }

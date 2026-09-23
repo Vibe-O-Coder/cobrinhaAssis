@@ -18,16 +18,17 @@ import { NET_KEEPALIVE_MS, NET_STALE_MS } from "../core/config.js";
 import {
   T, LABELS, PhpTransport, MqttTransport, WebRTCTransport,
 } from "./transports.js";
+import { RelayTransport } from "./relay.js";
 
 const PEER_TIMEOUT_MS = 15000;
 
-export function createSession(isHost, code, cbs, kind) {
+export function createSession(isHost, code, cbs, kind, ticket) {
   const myId = Math.random().toString(36).slice(2, 9);
   /* No WebRTC o canal é exclusivo entre os dois navegadores: tudo que chega,
      chega do parceiro. Filtrar por id de remetente aqui seria errado — e foi
      exatamente o que quebrou no primeiro teste, porque o parceiro assina com o
      id ALEATÓRIO dele, não com um valor que este lado possa adivinhar. */
-  const direct = kind === T.WEBRTC;
+  const direct = kind === T.WEBRTC || kind === T.RELAY;
   let alive = true;
   let peerKnown = false;
   let peerFrom = null;
@@ -63,7 +64,7 @@ export function createSession(isHost, code, cbs, kind) {
   }
 
   function peerUp() {
-    if (peerKnown) return;
+    if (peerKnown && kind !== T.RELAY) return;
     peerKnown = true;
     lastSeen = Date.now();
     stopKnock();
@@ -75,6 +76,7 @@ export function createSession(isHost, code, cbs, kind) {
     if (!peerKnown && !peerFrom) return;
     peerFrom = null;
     peerKnown = false;
+    received.clear();
     cbs.onPeerLeave && cbs.onPeerLeave();
   }
 
@@ -163,7 +165,9 @@ export function createSession(isHost, code, cbs, kind) {
   const status = (m) => cbs.onStatus && cbs.onStatus(m);
   const fatal = (m) => cbs.onFatal && cbs.onFatal(m);
 
-  if (kind === T.WEBRTC) {
+  if (kind === T.RELAY) {
+    tr = RelayTransport(ticket, raw, status, fatal, peerUp, peerDown, cbs.onReady);
+  } else if (kind === T.WEBRTC) {
     // Canal direto: quando o DataChannel abre, o parceiro está lá.
     tr = WebRTCTransport(code, isHost, raw, status, fatal, () => {
       peerFrom = peerFrom || "webrtc";
@@ -217,7 +221,7 @@ export function createSession(isHost, code, cbs, kind) {
       // convidado fechar a aba ou recarregar a página.
       status("⚠️ o outro jogador sumiu — sala liberada.");
       peerDown();
-      if (!isHost) startKnock();
+      if (!isHost && !direct) startKnock();
       return;
     }
     if (silent > NET_STALE_MS && !warnedStale) {

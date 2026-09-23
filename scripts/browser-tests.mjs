@@ -145,8 +145,8 @@ try {
  // Conexão real entre dois contextos, pelo relay PHP da aplicação.
  await test('PVP LAN: lobby, câmera própria, movimento, item, escolha ao vivo e resultado nos dois lados',async()=>{
   const hc=await browser.newContext(),gc=await browser.newContext();const h=await hc.newPage(),g=await gc.newPage();
-  for(const p of [h,g]){p.on('pageerror',e=>errors.push(e.stack));await p.goto(base);await p.waitForFunction(()=>window.SRK?.startRun);await p.locator('[data-act="open-online"]').click();await p.locator('#nmPhp').check();}
-  await h.locator('#onlineMode').selectOption('pvp');await h.locator('[data-act="create-room"]').click();const code=await h.locator('#lobbyCode').textContent();
+  for(const p of [h,g]){p.on('pageerror',e=>errors.push(e.stack));await p.goto(base);await p.waitForFunction(()=>window.SRK?.startRun);await p.locator('[data-act="open-online"]').click();await p.locator('.net-advanced summary').click();await p.locator('#nmPhp').check();}
+  await h.locator('#onlineMode').selectOption('pvp');await h.locator('[data-act="create-room"]').click();await h.waitForSelector('#lobby:not(.hidden)');const code=await h.locator('#lobbyCode').textContent();
   await g.locator('#joinCode').fill(code);await g.locator('[data-act="join-room"]').click();await g.locator('#lobbyGrid .card').nth(1).click();
   await h.locator('#btnStartOnline').click();await g.waitForFunction(()=>SRK.S.rs?.pvp && SRK.S.phase==='play');
   assert.equal(await g.evaluate(()=>SRK.S.mode),'pvp');

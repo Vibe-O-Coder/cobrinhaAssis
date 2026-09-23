@@ -1,7 +1,7 @@
 /* ================= LOOP PRINCIPAL ================= */
 import { S } from "../core/state.js";
 import { save } from "../core/save.js";
-import { spawnInterval } from "../core/scaling.js";
+import { spawnInterval, spawnBatch } from "../core/scaling.js";
 import { $ } from "../core/utils.js";
 import { updatePlayer } from "./player.js";
 import { updateEnemies } from "./enemies.js";
@@ -31,8 +31,10 @@ export function update(dt) {
     S.spawnT -= dt;
     if (S.spawnT <= 0) {
       S.spawnT = spawnInterval(S.wave);
-      S.spawnQ--;
-      spawnStep();
+      for (let i = 0; i < spawnBatch(S.wave) && S.spawnQ > 0; i++) {
+        if (!spawnStep()) break;
+        S.spawnQ--;
+      }
     }
   }
 

@@ -3,9 +3,10 @@ import { $, esc } from "../core/utils.js";
 import { S } from "../core/state.js";
 import { save, persist } from "../core/save.js";
 import { CLASSES, PALETTE } from "../data/classes.js";
+import { ULTIMATE_PATHS } from "../data/ultimates.js";
 import { MODES, modeDef, setMode } from "../data/modes.js";
-import { ACT_DEFS, actDef } from "../data/acts.js";
-import { ACT_LEN } from "../core/config.js";
+
+
 import { showScreen, updateMenu } from "./screens.js";
 import { startRun } from "../game/run.js";
 import { sfx } from "../core/audio.js";
@@ -81,61 +82,7 @@ export function updateOptionButtons() {
   }
 }
 
-/* ---------------------------------------------------------------------------
-   CHECKPOINT POR ATO
-
-   Vencer o chefe de um ato desbloqueia COMEÇAR dele. Sem isso a run de 290
-   ondas é uma maratona única de várias horas, e um erro na onda 250 apaga tudo.
-   Começar do ato IV é uma sessão de 20-30 minutos, que é o que dá para jogar
-   numa sentada.
-
-   A escolha é sempre opcional: quem quiser a run inteira do zero é só deixar no
-   ato I, e o recorde continua contando a onda absoluta.
-   --------------------------------------------------------------------------- */
-
-let actPicked = 0;
-
-export function startActWave() {
-  return actPicked * ACT_LEN + 1;
-}
-
-export function buildActRow() {
-  const wrap = $("#actPick");
-  const row = $("#actRow");
-  if (!wrap || !row) return;
-
-  // nada desbloqueado ainda: nem mostra a fileira
-  if (!save.acts) {
-    wrap.classList.add("hidden");
-    actPicked = 0;
-    return;
-  }
-  wrap.classList.remove("hidden");
-  actPicked = Math.min(actPicked, save.acts);
-
-  row.innerHTML = "";
-  const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-  for (let i = 0; i < ACT_DEFS.length; i++) {
-    const a = actDef(i);
-    const liberado = i <= save.acts;
-    const b = document.createElement("button");
-    b.className = "actbtn" + (actPicked === i ? " sel" : "");
-    b.disabled = !liberado;
-    b.textContent = liberado
-      ? a.ic + " " + ROMAN[i] + " · " + a.n
-      : "🔒 " + ROMAN[i];
-    b.title = liberado
-      ? a.era + " — começa na onda " + (i * ACT_LEN + 1)
-      : "vença o chefe do ato " + ROMAN[i - 1] + " para desbloquear";
-    if (liberado) {
-      b.addEventListener("click", () => {
-        actPicked = i;
-        buildActRow();
-      });
-    }
-    row.appendChild(b);
-  }
-}
+export function startActWave() { return 1; }
 
 import { PVP_ABILITIES } from "../game/pvpabilities.js";
 
@@ -149,11 +96,13 @@ export function buildClassCards(grid, onPick) {
     el.innerHTML =
       `<div class="ic">${c.ic}</div><h3 style="color:${c.color}">${esc(c.name)}</h3>` +
       `<p>${esc(c.desc)}</p>` +
-      `<div class="tags"><span class="tag">❤️ ${c.hp}</span>` +
+      `<div class="tags"><span class="tag">❤️ ${c.hp} HP</span>` +
       `<span class="tag">⚔️ ${c.dmg}x</span>` +
       `<span class="tag">⏱️ ${c.abCd}s</span></div>` +
       `<div class="tags"><span class="tag" style="color:#ffd75e">✨ ${esc(c.ab)}</span></div>` +
-      `<div class="tags"><span class="tag">${esc(c.pass)}</span></div>`;
+      `<div class="tags"><span class="tag">${esc(c.pass)}</span></div>` +
+      `<details class="class-paths"><summary>3 caminhos de ultimate</summary>${ULTIMATE_PATHS[i].map(p => `<p>${esc(p.name)} · 10 níveis</p>`).join("")}</details>`;
+    el.querySelector("details").addEventListener("click", e => e.stopPropagation());
     el.addEventListener("click", () => onPick(i));
     grid.appendChild(el);
   });
@@ -170,14 +119,7 @@ export function gotoClass(m) {
   csQueue = m === "local" || m === "pvp" ? [0, 1] : [0];
   setMode(save.mode); // a dificuldade vale a partir de agora
   showScreen("classSel");
-  buildActRow();
-  /* Checkpoint de ato é coisa de campanha: no duelo os dois sempre começam do
-     zero, senão quem já venceu o ato VII entraria com uma vantagem que o outro
-     não tem como igualar. */
-  if (m === "pvp") {
-    const wrap = $("#actPick");
-    if (wrap) wrap.classList.add("hidden");
-  }
+
   renderClassStep();
 }
 

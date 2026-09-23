@@ -15,10 +15,13 @@ import { reconcilePrediction, tickPrediction, predictedPlayers, resetPrediction 
 import { setActPalette } from "./canvas.js";
 import { actOf } from "../core/scaling.js";
 import { drainNetFx, applyNetFx } from "./fx.js";
+import { radarPoints } from "./minimap.js";
 
 export function LIVE() {
   return {
     pvp: S.pvp,
+    finalArena: S.finalArena,
+    bossHazards: S.bossHazards,
     players: S.players,
     enemies: S.enemies,
     pbullets: S.pbullets,
@@ -41,6 +44,9 @@ export function snap() {
   const visible = e => !peer || Math.abs(e.x-(peer[0]+0.5)*28)<1100 && Math.abs(e.y-(peer[1]+0.5)*28)<1100;
   return {
     seq: ++S.stateSeq, time: S.gameT, mode: S.mode,
+    finalArena: S.finalArena,
+    bossHazards: S.bossHazards || [],
+    radar: radarPoints(S.enemies),
     pvp: S.pvp ? {t:S.pvp.t,stacks:S.pvp.stacks,sudden:S.pvp.sudden,arena:S.pvp.arena,over:S.pvp.over,winner:S.pvp.winner,choices:S.pvp.choices,pending:S.pvp.pending,meteors:S.pvp.meteors.map(m=>({x:m.x,y:m.y,r:m.r,t:m.t}))} : null,
     wave: S.wave,
     score: S.score,
@@ -56,6 +62,7 @@ export function snap() {
     players: S.players.map((p) => ({
       ...Object.fromEntries(["level","xp","xpNext","guard","guardMax","guardRate","guardT","pvpIf","pvpIfBonus","pvpDmg","pvpRes","dodge","itemT","itemCdMul","kills","pvpKills","spd","mt","grow","dmg","dmgMul","dmgFlat","cd","cdBase","shots","pierce","range","crit","critDmg","venom","boom","boomR","ls","thorns","magnetR","abName","name","inputAck","iframeBonus","shieldBase","soulMult","regenMax","sizeMul","pvpSlowT","berserkT"].map(k=>[k,p[k]])),
       item: p.item, powers:p.powers, powerLog:p.powerLog,
+      ultimate: p.ultimate, lastGamble: p.lastGamble,
       idx: p.idx,
       cls: p.cls,
       color: p.color,
@@ -75,8 +82,9 @@ export function snap() {
         ? p.turrets.map((t) => ({ x: Math.round(t.x), y: Math.round(t.y), life: Math.round(t.life * 10) / 10 }))
         : undefined,
       heads: p.heads && p.heads.length ? p.heads : undefined,
+      ultimateTurrets: p.ultimateTurrets?.length ? p.ultimateTurrets.map(t => ({x: Math.round(t.x), y: Math.round(t.y), life:t.life})) : undefined,
     })),
-    enemies: S.enemies.filter(visible).map((e) => ({
+    enemies: S.enemies.filter(e => visible(e) || String(e.type).startsWith("boss")).map((e) => ({
       id: e.id,
       x: Math.round(e.x),
       y: Math.round(e.y),
@@ -98,6 +106,7 @@ export function snap() {
       fphase: e.fphase,
       orb: e.orb ? Math.round(e.orb * 100) / 100 : undefined,
       armed: e.armed ? 1 : 0,
+      bossPhase: e.bossPhase, bossAction: e.bossAction,
     })),
     pbullets: S.pbullets.filter(visible).map((b) => ({
       x: Math.round(b.x), y: Math.round(b.y),
@@ -131,6 +140,8 @@ export function snap() {
       ? {
           deck: S.pickState.deck,
           opts: S.pickState.opts,
+          optsByPlayer: S.pickState.optsByPlayer,
+          automatic: S.pickState.automatic,
           relic: S.pickState.relic,
           alive: S.pickState.alive,
           picked: [...S.pickState.picked],
@@ -151,6 +162,8 @@ export function applySnapshot(d) {
   S.rs = d;
   S.phase = d.phase; S.paused = !!d.paused;
   S.mode = d.mode || S.mode;
+  S.finalArena = d.finalArena || null;
+  S.bossHazards = d.bossHazards || [];
   if (d.pvp) S.pvp = d.pvp;
   setActPalette(actOf(d.wave));
   receivedAt = performance.now();

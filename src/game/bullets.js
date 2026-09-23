@@ -11,7 +11,7 @@ import { cleanupEnemies, explode } from "./enemies.js";
 import { isBoss } from "../data/enemies.js";
 import { blockRegen, weaken } from "./player.js";
 import { chainLightning } from "./classes.js";
-import { slowEnemy } from "./enemies.js";
+import { slowEnemy, stunEnemy, curseEnemy } from "./enemies.js";
 import { isPvp, pvpBulletHit, pvpHit } from "./pvp.js";
 
 /** Afixos que o projétil inimigo carrega (ver game/enemies.js). */
@@ -49,17 +49,16 @@ export function hitEnemy(e, b) {
   /* A aura do Guardião reduz o dano recebido. Ela era aplicada em explosões e
      espinhos, mas NÃO nos tiros — que são de longe a principal fonte de dano.
      Na prática o Guardião quase não protegia ninguém. */
-  /* Maldição do Espectral: o inimigo que encostou no corpo da cobra recebe o
-     DOBRO de dano. É a passiva inteira da classe, então mora aqui, no único
-     ponto por onde todo tiro do jogador passa. */
-  // ☠️ Maldição Profunda sobe o multiplicador de 2 para 3
-  const mald = e.cursedT > 0 ? (b.owner && b.owner.xCurse ? 3 : 2) : 1;
+  // Ultimates de maldição dobram o dano recebido durante o efeito.
+  const mald = e.cursedT > 0 ? 2 : 1;
   const dmg = b.dmg * (1 - (e.ward || 0)) * mald;
   e.hp -= dmg;
   e.flash = 0.12;
   e.lastHitBy = b.owner;
-  e.x += b.vx * 0.012;
-  e.y += b.vy * 0.012;
+  if (!e.anchored) {
+    e.x += b.vx * 0.012;
+    e.y += b.vy * 0.012;
+  }
   addText(
     e.x, e.y - e.r - 8,
     (b.crit ? "✦" : "") + Math.round(dmg * 10) / 10,
@@ -72,6 +71,9 @@ export function hitEnemy(e, b) {
     e.dot = Math.max(e.dot, b.venom);
     e.dotT = 3;
   }
+  if (b.ultimateStatus === "stun") stunEnemy(e, b.ultimateDuration || 1);
+  if (b.ultimateStatus === "slow" || b.ultimateStatus === "pull") slowEnemy(e, b.ultimateDuration || 1, .45);
+  if (b.ultimateStatus === "curse") curseEnemy(e, b.ultimateDuration || 1);
   if (b.ls > 0 && Math.random() < b.ls && b.owner) lifestealHeal(b.owner);
   /* Execução nunca vale em chefe: um chefe de 40 mil de vida morria de graça
      ao cair abaixo de 25%, o que apagava a fase final da luta. */
@@ -134,7 +136,9 @@ export function updateBullets(dt) {
         if (q.dead || q === b.owner) continue;
         const h = headPx(q);
         if (dist(b.x, b.y, h.x, h.y) < 13) {
+          const hp = q.hp, guard = q.guard;
           pvpBulletHit(q, b);
+          if (b.ultimateStatus && (q.hp < hp || q.guard < guard)) q.pvpSlowT = Math.max(q.pvpSlowT || 0, Math.min(1.2, b.ultimateDuration || .5));
           dead = true;
           break;
         }
@@ -209,6 +213,12 @@ export function updateBombs(dt) {
     if (b.t <= 0) {
       S.bombs.splice(i, 1);
       explode(b.x, b.y, b.r, b.dmg, b.owner);
+      if (b.ultimateStatus) for (const e of S.enemies) {
+        if (e.hp <= 0 || dist(b.x,b.y,e.x,e.y)>b.r+e.r) continue;
+        if (b.ultimateStatus === 'slow') slowEnemy(e,b.ultimateDuration,.45);
+        if (b.ultimateStatus === 'stun') stunEnemy(e,b.ultimateDuration);
+        if (b.ultimateStatus === 'curse') curseEnemy(e,b.ultimateDuration);
+      }
       shockwave(b.x, b.y, b.r * 1.3, "#ff9838", 12);
       S.flash = Math.max(S.flash, 0.22);
       S.shake = Math.min(18, S.shake + 10);
@@ -216,7 +226,7 @@ export function updateBombs(dt) {
         for (const p of S.players) {
           if (p.dead || p === b.owner) continue;
           const h=headPx(p);
-          if (dist(b.x,b.y,h.x,h.y)<b.r) pvpHit(p,b.dmg,b.owner,"ability");
+          if (dist(b.x,b.y,h.x,h.y)<b.r && pvpHit(p,b.dmg,b.owner,"ability")>0 && b.ultimateStatus) p.pvpSlowT=Math.max(p.pvpSlowT||0,Math.min(1.2,b.ultimateDuration));
         }
       }
       // Bomba inimiga também machuca o jogador.

@@ -25,6 +25,39 @@ body {
 .hidden {
   display: none !important;
 }
+.online-panel { width: min(100%, 740px); margin-top: 8px; text-align: center; }
+.auto-connection { display: inline-flex; gap: 10px; align-items: center; font-weight: 700; color: #97edba; }
+.net-advanced { margin: 12px 0; text-align: left; color: #b9a8ff; }
+.net-advanced summary { cursor: pointer; padding: 8px 0; }
+.net-advanced .row { margin-top: 10px; }
+.room-create, .room-join, .room-browser { padding: 18px 0; border-top: 1px solid #7c4dff44; }
+.online-panel h3 { color: #e8e2ff; font-size: 20px; text-align: left; margin-bottom: 12px; }
+.room-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
+.room-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; color: #c7b9ef; min-width: 0; }
+.room-fields input, .room-fields select { width: 100%; min-width: 0; font: inherit; padding: 10px 12px; background: #0f0920; color: #f4edff; border: 1px solid #70529b; border-radius: 8px; user-select: text; }
+.room-fields input:focus, .room-fields select:focus { outline: 2px solid #ac8df5; outline-offset: 2px; }
+.room-fields .code { letter-spacing: 2px; }
+.room-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.room-list-heading h3 { margin: 0; }
+#roomList { display: grid; gap: 10px; }
+.room-entry, .room-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; border: 1px solid #71529766; border-radius: 10px; padding: 12px; background: #1e1236; }
+.room-entry > div, .room-row > div { min-width: 0; overflow-wrap: anywhere; }
+.room-entry .btn, .room-row .btn { flex-shrink: 0; }
+.lobby-password { user-select: text; font-size: 19px; color: #ffd75e; margin: 8px 0; overflow-wrap: anywhere; }
+.card.class-card, .pwcard.class-card, .pvp-choice .class-card { border: 2px solid #62dcd3; box-shadow: inset 0 0 0 2px #143938, 0 0 14px #62dcd322; }
+.card.ultimate-card, .pwcard.ultimate-card, .pvp-choice .ultimate-card { border: 3px double #ffd75e; background: linear-gradient(150deg, #34224e, #1b102d); }
+.class-badge { display: inline-block; border: 1px solid #62dcd3; border-radius: 5px; padding: 2px 6px; margin: 4px 0; color: #adfff2; font-size: 11px; letter-spacing: .6px; }
+.ultimate-card .class-badge { color: #ffe7a0; border-color: #e5bc55; }
+.ultimate-summary { padding: 12px; margin: 10px 0; background: #261734; border: 1px solid #ffd75e77; border-radius: 10px; }
+.ultimate-summary p { margin-top: 5px; color: #d9c9e9; }
+.class-paths { margin-top: 10px; padding-top: 8px; border-top: 1px solid #7c4dff55; color: #dbc1ff; font-size: 12px; }
+.class-paths summary { cursor: pointer; }
+@media (max-width: 520px) {
+  .online-panel { padding: 14px; }
+  .room-fields { grid-template-columns: 1fr; }
+  .room-entry, .room-row { flex-wrap: wrap; }
+  .online-panel .btn { max-width: 100%; min-width: 0; }
+}
 h1.logo {
   font-family: "Orbitron";
   font-weight: 900;

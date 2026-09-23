@@ -2,9 +2,9 @@
 import { $, clamp, esc } from "../core/utils.js";
 import { S } from "../core/state.js";
 import { CLASSES } from "../data/classes.js";
+import { ultimateCooldown } from "../data/ultimates.js";
 import { FINAL_WAVE } from "../core/config.js";
 import { actOf, bossKind } from "../core/scaling.js";
-import { isBoss, bossName } from "../data/enemies.js";
 import { LIVE } from "./snapshot.js";
 import { isPvp } from "../game/pvp.js";
 import { PVP_ABILITIES } from "../game/pvpabilities.js";
@@ -15,52 +15,17 @@ export function safeColor(c) {
   return /^#[0-9a-fA-F]{3,8}$/.test(String(c || "")) ? c : "#e8e2ff";
 }
 
-/* Meio coração existe agora: o dano de contato é 1,5 nos atos V-VII e 2 do
-   VIII em diante, e o modo difícil soma +0,5. Antes o laço comparava
-   `i < p.hp` com p.hp inteiro, então 2,5 de vida desenhava 3 corações
-   cheios. */
+/* Dois HP por coração. O valor exato, inclusive frações, fica nos status. */
 function hearts(p) {
   const hp = Math.max(0, p.hp);
-  if (p.maxHp > 14) return "❤×" + (Math.round(hp * 2) / 2);
+  if (p.maxHp > 28) return "❤×" + (Math.round(hp) / 2) + " · " + hp + " HP";
   let s = "";
-  for (let i = 0; i < p.maxHp; i++) {
-    if (i + 1 <= hp) s += "❤️";
-    else if (i + 0.5 <= hp) s += "💔"; // meio coração
+  for (let i = 0; i < p.maxHp; i += 2) {
+    if (i + 2 <= hp) s += "❤️";
+    else if (hp > i) s += "💔"; // 1 HP = meio coração
     else s += "🖤";
   }
   return s;
-}
-
-/* Barra de vida do chefe. Mostra o chefe VIVO com mais vida absoluta — em
-   onda de 2 ou 3 chefes, é o que sobrou de mais perigoso. */
-function updateBossBar() {
-  const bar = $("#bossBar");
-  if (!bar) return;
-
-  // O convidado não simula: sem lista de inimigos local, não há barra.
-  if (S.role === "guest") {
-    bar.classList.add("hidden");
-    return;
-  }
-
-  let best = null;
-  for (const e of S.enemies) {
-    if (e.hp <= 0 || !isBoss(e.type)) continue;
-    if (!best || e.hp > best.hp) best = e;
-  }
-  if (!best) {
-    bar.classList.add("hidden");
-    return;
-  }
-
-  bar.classList.remove("hidden");
-  bar.classList.toggle("enraged", !!best.enraged);
-  const frac = clamp(best.hp / Math.max(1, best.mhp), 0, 1);
-  $("#bossFill").style.width = frac * 100 + "%";
-  $("#bossName").textContent =
-    bossName(best.type) +
-    "  " + Math.ceil(best.hp) + " / " + best.mhp +
-    (best.enraged ? "  🔥" : "");
 }
 
 /* ---------------------------------------------------------------------------
@@ -98,7 +63,7 @@ function pvpPanel(p) {
   const hpTxt = Math.round(p.hp * 10) / 10 + " / " + p.maxHp;
   const xpFrac = p.xpNext ? p.xp / p.xpNext : 0;
 
-  let icons = cooldownIcon(c.ic, p.abT, p.abCd, PVP_ABILITIES[p.cls][0]);
+  let icons = cooldownIcon(c.ic, p.abT, ultimateCooldown(p), p.abName || PVP_ABILITIES[p.cls][0]);
   if (p.item) icons += cooldownIcon(p.item.ic, p.itemT, p.item.cd * (p.itemCdMul || 1), p.item.n);
 
   return (
@@ -145,7 +110,6 @@ export function updateHUD() {
   $("#hud").classList.toggle("hidden", pvp);
   $("#pvpHud").classList.toggle("hidden", !pvp);
   if (pvp) {
-    $("#bossBar").classList.add("hidden");
     updatePvpHUD(v);
     return;
   }
@@ -172,8 +136,6 @@ export function updateHUD() {
     "ONDA " + v.wave + " / " + FINAL_WAVE +
     "  ·  ATO " + (actOf(v.wave) + 1);
 
-  updateBossBar();
-
   const left =
     S.role === "guest"
       ? S.rs && S.rs.left !== undefined ? S.rs.left : "?"
@@ -185,9 +147,9 @@ export function updateHUD() {
   let aw = "";
   for (const p of v.players) {
     const c = CLASSES[p.cls] || CLASSES[0];
-    const pct = clamp(1 - p.abT / p.abCd, 0, 1);
+    const pct = clamp(1 - p.abT / ultimateCooldown(p), 0, 1);
     aw +=
-      `<div class="abicon ${p.abT <= 0 ? "ready" : ""}" title="${esc(c.ab)}" ` +
+      `<div class="abicon ${p.abT <= 0 ? "ready" : ""}" title="${esc(p.abName || c.ab)}" ` +
       `style="background:conic-gradient(${safeColor(p.color)} ${pct * 360}deg,#241a3d 0deg)">${c.ic}</div>`;
   }
   $("#abWrap").innerHTML = aw;

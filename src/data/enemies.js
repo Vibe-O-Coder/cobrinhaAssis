@@ -84,6 +84,16 @@ export const EDEF = {
   breaker_veteran: { hp: 16, spd: 66, r: 17, score: 11, c: "#ff5ba7", art: "breaker", pattern: "charge_double", brand: "weaken" },
   breaker_abissal: { hp: 26, spd: 72, r: 18, score: 18, c: "#d4007a", art: "breaker", pattern: "charge_double", brand: "weaken" },
 
+  mortar: { hp: 12, spd: 28, r: 19, score: 8, c: "#ffbe55", art: "tank", pattern: "mortar" },
+  mortar_veteran: { hp: 21, spd: 32, r: 21, score: 13, c: "#ffa126", art: "tank", pattern: "mortar" },
+  mortar_abissal: { hp: 33, spd: 37, r: 23, score: 20, c: "#ed7810", art: "tank", pattern: "mortar" },
+  sentinel: { hp: 9, spd: 46, r: 16, score: 7, c: "#75c5ff", art: "warden", pattern: "crossfire" },
+  sentinel_veteran: { hp: 16, spd: 52, r: 18, score: 12, c: "#45a3ff", art: "warden", pattern: "crossfire" },
+  sentinel_abissal: { hp: 26, spd: 58, r: 20, score: 19, c: "#1681ed", art: "warden", pattern: "crossfire" },
+  stalker: { hp: 8, spd: 98, r: 12, score: 7, c: "#f39aff", art: "weaver", pattern: "stalk" },
+  stalker_veteran: { hp: 14, spd: 110, r: 14, score: 12, c: "#df70ff", art: "weaver", pattern: "stalk" },
+  stalker_abissal: { hp: 23, spd: 121, r: 15, score: 19, c: "#bb3fe6", art: "weaver", pattern: "stalk" },
+
   /* ---------- filhotes ---------- */
   mini: { hp: 2, spd: 95, r: 9, score: 1, c: "#ff7bd5", art: "splitter", pattern: "chase" },
 
@@ -135,7 +145,7 @@ export const EDEF = {
     pattern: "boss_tyrant", brand: "weaken",
   },
   boss_final: {
-    hp: 200, spd: 34, r: 52, score: 250, c: "#ffd75e", art: "boss_final",
+    hp: 200, spd: 0, r: 132, score: 250, c: "#ffd75e", art: "boss_final",
     boss: true, elite: true, final: true, name: "O DEVORADOR DE MUNDOS",
     pattern: "boss_final",
   },
@@ -145,7 +155,7 @@ export const EDEF = {
 export const BASE_TYPES = [
   "grunter", "runner", "shooter", "tank", "splitter", "orbiter",
   "healer", "charger", "sniper", "bomber", "weaver", "warden", "spitter",
-  "leech", "breaker",
+  "leech", "breaker", "mortar", "sentinel", "stalker",
 ];
 
 export const SUFFIX = [

@@ -1,6 +1,7 @@
 ﻿/* Predição apenas visual do convidado. Colisões, dano e compras são do host. */
 import { S } from '../core/state.js';
 import { COLS, ROWS } from '../core/config.js';
+import { arenaCellBounds } from '../game/arena.js';
 let predicted=null, pending=[], receivedAt=0, arenaKey='';
 const clone=p=>({...p,cells:p.cells.map(c=>[...c]),dir:{...p.dir},qdir:p.qdir?{...p.qdir}:null});
 const wrap=(n,lo,size)=>lo+((n-lo)%size+size)%size;
@@ -10,7 +11,7 @@ function advance(p,ms){
   for(let guard=0;p.mt<=0&&guard<4;guard++){
     p.mt+=p.spd*(p.pvpSlowT>0?1.25:1);
     if(p.qdir){const d=p.qdir;p.qdir=null;if(d.x!==-p.dir.x||d.y!==-p.dir.y)p.dir=d;}
-    const a=S.rs?.pvp?.arena;
+    const a=S.rs?.pvp?.arena || arenaCellBounds(S.rs?.finalArena);
     const h=p.cells[0];
     p.cells.unshift([wrap(h[0]+p.dir.x,a?.x0||0,a?a.x1-a.x0:COLS),wrap(h[1]+p.dir.y,a?.y0||0,a?a.y1-a.y0:ROWS)]);
     if(p.grow>0)p.grow--;else p.cells.pop();
@@ -23,7 +24,7 @@ export function predictInput(direction,seq){
 export function reconcilePrediction(snapshot){
   const p=snapshot.players?.[1];if(!p){predicted=null;return;}
   receivedAt=performance.now();
-  const previous=predicted, nextArena=JSON.stringify(snapshot.pvp?.arena || null);
+  const previous=predicted, nextArena=JSON.stringify(snapshot.pvp?.arena || snapshot.finalArena || null);
   pending=pending.filter(i=>i.seq>(p.inputAck||0));
   // Pacotes enviados antes da curva não desfazem a previsão enquanto o
   // comando viaja. Teleporte, morte e pausa sempre obedecem ao host.

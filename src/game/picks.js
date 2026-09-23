@@ -15,6 +15,7 @@ import { headPx, grantPower } from "./player.js";
 import { save, persist } from "../core/save.js";
 import { startWave } from "./waves.js";
 import { gameOver } from "./run.js";
+import { grantRandomPowers } from './gambler.js';
 
 export function waveClear() {
   // O chefe final morreu: a run acaba em vitória, não em mais uma onda.
@@ -29,20 +30,20 @@ export function waveClear() {
   sfx("gold");
   banner("ONDA " + S.wave + " LIMPA! ✨", "+" + gain + " almas");
 
-  /* CHECKPOINT: limpar a onda 29 de um ato desbloqueia começar do ato seguinte
-     numa run futura. É o que transforma 290 ondas em sessões jogáveis. */
+  // Registra o maior ato alcançado; novas campanhas sempre começam na onda 1.
   if (bossKind(S.wave) === "act") {
     const prox = Math.min(ACTS - 1, actOf(S.wave) + 1);
     if (prox > save.acts) {
       save.acts = prox;
       persist();
-      toast("🔓 Ato desbloqueado: " + actDef(prox).n + " — dá para começar dele agora");
+      toast("🔓 Ato alcançado: " + actDef(prox).n);
     }
   }
 
   const relic = isBossWave(S.wave);
+  const players = S.players, wave = S.wave;
   setTimeout(() => {
-    if (S.runActive) beginChoice(relic);
+    if (S.runActive && S.players === players && S.wave === wave && S.phase === "choice") beginChoice(relic);
   }, 800);
 }
 
@@ -53,9 +54,8 @@ export function waveClear() {
    "Ímã de Comida" (booleano) pela décima vez, "Olho Crítico" já no teto de
    crítico, e "Veneno Concentrado" sem ter veneno.
 
-   Em co-op os 3 índices são os MESMOS para os dois jogadores (é o que vai pela
-   rede), então uma carta entra na lista se serve para PELO MENOS UM jogador
-   vivo. */
+   O co-op monta uma oferta para cada jogador, respeitando a classe e o caminho
+   de ultimate escolhido por ele. */
 function offerable(pool, alive) {
   const normal = [];
   const overflow = [];
@@ -74,7 +74,22 @@ function offerable(pool, alive) {
 
   // Rede de segurança: nunca devolver lista vazia, senão a fase trava em
   // "choice" com uma tela sem cartas.
-  return idx.length ? idx : [...pool.keys()];
+  return idx;
+}
+
+/** Uma mão por jogador impede conceder a habilidade exclusiva do parceiro. */
+function optionsFor(pool, pi, count, relic) {
+  const p = S.players[pi], eligible = offerable(pool, [pi]);
+  const ultimates = eligible.filter(k => pool[k].ultimate);
+  if (!relic && !p.ultimate && S.wave >= 3 && ultimates.length) return sample(ultimates, count);
+  const opts = sample(eligible, count);
+  if (!relic && S.wave % 3 === 0 && ultimates.length && !opts.some(k => pool[k].ultimate)) opts[0] = ultimates[0];
+  return opts;
+}
+
+function sendChoices(st) {
+  if (S.role === 'host' && S.net) S.net.send({ t: 'up', opts: st.opts, optsByPlayer: st.optsByPlayer,
+    relic: st.relic, alive: st.alive, deck: st.deck, picked: [...st.picked], automatic: st.automatic });
 }
 
 /* Baralho da escolha de fim de onda. O PVP usa pvppicks.js para manter
@@ -99,7 +114,9 @@ export function beginChoice(relic) {
      por escolha é a diferença entre montar a build que você quer e aceitar o
      que veio. */
   const nCartas = 3 + (save.upg.qrt ? 1 : 0);
-  const opts = sample(offerable(pool, alive), nCartas);
+  const automatic = alive.filter(i => S.players[i].cls === 11);
+  const optsByPlayer = Object.fromEntries(alive.map(i => [i, optionsFor(pool, i, nCartas, relic)]));
+  const opts = optsByPlayer[0] || optsByPlayer[alive[0]] || [];
 
   // `prompting` guarda QUEM está com as cartas na tela agora. Sem isso, quando
   // a escolha do outro jogador chegava pela rede antes do host clicar, o
@@ -107,13 +124,19 @@ export function beginChoice(relic) {
   // escolha — o host não tinha mais como escolher, pickState nunca fechava,
   // a fase travava em "choice" e os dois ficavam presos até recarregar.
   S.pickState = {
-    opts, relic, alive, deck: relic ? "relic" : "up",
+    opts, optsByPlayer, automatic, relic, alive, deck: relic ? "relic" : "up",
     picked: new Set(), localQ: [], prompting: null, nCartas,
   };
   S.pickState.localQ =
-    S.mode === "local" ? alive.slice() : alive.filter((i) => i === 0);
+    (S.mode === "local" ? alive.slice() : alive.filter((i) => i === 0)).filter(i => !automatic.includes(i));
 
-  if (S.role === "host" && S.net) S.net.send({ t: "up", opts, relic, alive });
+  for (const pi of automatic) {
+    const awarded = grantRandomPowers(S.players[pi], pool, 2);
+    S.pickState.picked.add(pi);
+    toast('🎲 J' + (pi + 1) + ': ' + awarded.map(o => o.n).join(' + '));
+  }
+  sendChoices(S.pickState);
+  if (alive.every(i => S.pickState.picked.has(i))) { maybeFinish(); return; }
   nextLocalPick();
 }
 
@@ -143,16 +166,17 @@ function showPickerUI(pi) {
   g.innerHTML = "";
   $("#upWait").classList.add("hidden");
 
-  for (const k of st.opts) {
+  for (const k of (st.optsByPlayer?.[pi] || st.opts)) {
     const o = pool[k];
     if (!o) continue;
     const have = levelOf(p, o.id);
     const c = document.createElement("div");
-    c.className = "card";
+    c.className = 'card' + (o.cls !== undefined ? ' class-card' : '') + (o.ultimate ? ' ultimate-card' : '');
     /* A carta agora mostra quantas você já tem e o que o PRÓXIMO nível deixa no
        total — assim dá para decidir sem abrir o menu de poderes. */
     c.innerHTML =
       `<div class="ic">${o.ic}</div>` +
+      (o.cls !== undefined ? `<span class="class-badge">${o.ultimate ? 'ULTIMATE · CAMINHO ' + (o.branch + 1) : 'PODER DE CLASSE'}</span>` : '') +
       `<h3>${esc(o.n)}${have ? ` <span class="stk">${have}x</span>` : ""}</h3>` +
       `<p>${esc(o.d)}</p>` +
       (have
@@ -178,7 +202,7 @@ function showPickerUI(pi) {
 
     c.addEventListener("click", () => {
       if (st.picked.has(pi)) return; // clique duplo não conta duas vezes
-      applyPick(pi, k);
+      if (!applyPick(pi, k)) return;
       st.picked.add(pi);
       st.prompting = null;
       sfx("gold");
@@ -218,8 +242,9 @@ function showPickerUI(pi) {
     st.afkT = setTimeout(() => {
       st.afkT = null;
       if (!S.pickState || S.pickState !== st || st.picked.has(pi)) return;
-      const k = st.opts[Math.floor(Math.random() * st.opts.length)];
-      applyPick(pi, k);
+      const opts = st.optsByPlayer?.[pi] || st.opts;
+      const k = opts[Math.floor(Math.random() * opts.length)];
+      if (!applyPick(pi, k)) return;
       st.picked.add(pi);
       st.prompting = null;
       sfx("gold");
@@ -231,12 +256,10 @@ function showPickerUI(pi) {
 /** Sorteia cartas novas para a mesma escolha (reroll e banimento). */
 function resortear(st, pi) {
   const pool = poolOf(st);
-  st.opts = sample(offerable(pool, st.alive), st.nCartas || 3);
-  if (S.role === "host" && S.net) {
-    S.net.send({
-      t: "up", opts: st.opts, relic: st.relic, alive: st.alive, deck: st.deck,
-    });
-  }
+  st.optsByPlayer ||= {};
+  for (const i of st.alive) if (!st.picked.has(i)) st.optsByPlayer[i] = optionsFor(pool, i, st.nCartas || 3, st.relic);
+  st.opts = st.optsByPlayer[0] || st.optsByPlayer[pi];
+  sendChoices(st);
   showPickerUI(pi);
 }
 
@@ -244,6 +267,7 @@ export function showWait() {
   $("#upCards").innerHTML = "";
   $("#upWait").classList.remove("hidden");
   $("#upTitle").textContent = "⏳ AGUARDANDO O OUTRO JOGADOR...";
+  $('#upOv').classList.remove('hidden');
 }
 
 export function applyPick(pi, k) {
@@ -252,7 +276,7 @@ export function applyPick(pi, k) {
   const pool = poolOf(st);
   const o = pool[k];
   const p = S.players[pi];
-  if (!o || !p) return;
+  if (!o || !p || p.cls === 11 || !canOffer(o, p) || !(st.optsByPlayer?.[pi] || st.opts).includes(k)) return false;
   /* grantPower aplica o efeito, incrementa o contador por id e reaplica os
      tetos. Antes aqui era `o.f(p); p.powerLog.push(o.n)` — o nome ia para uma
      lista solta e nada contava nível nenhum. */
@@ -260,6 +284,7 @@ export function applyPick(pi, k) {
   const lv = levelOf(p, o.id);
   const Hh = p.dead ? { x: 0, y: 0 } : headPx(p);
   addText(Hh.x, Hh.y - 22, o.n + (lv > 1 ? " " + lv + "x" : ""), "#ffd75e", 1.4, 14);
+  return true;
 }
 
 /** Escolha vinda da rede. Valida o índice — nunca confie no que chega do peer. */
@@ -269,8 +294,8 @@ export function netPick(pi, k) {
   if (!st.alive.includes(pi) || st.picked.has(pi)) return;
   const pool = poolOf(st);
   if (!Number.isInteger(k) || k < 0 || k >= pool.length) return;
-  if (!st.opts.includes(k)) return; // só as 3 cartas oferecidas
-  applyPick(pi, k);
+  if (!(st.optsByPlayer?.[pi] || st.opts).includes(k)) return;
+  if (!applyPick(pi, k)) return;
   st.picked.add(pi);
   maybeFinish();
 }

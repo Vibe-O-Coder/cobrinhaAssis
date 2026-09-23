@@ -6,6 +6,7 @@ import { sfx } from "../core/audio.js";
 import { addParts, addText } from "../render/fx.js";
 import { headPx, heal, damagePlayer } from "./player.js";
 import { gainXp, isPvp } from "./pvp.js";
+import { arenaCellBounds } from "./arena.js";
 
 export function blockAt(x, y) {
   return S.blocks.find((b) => b.x === x && b.y === y);
@@ -28,9 +29,10 @@ export function addBlock() {
 }
 
 export function spawnFood(normal) {
+  const arena = arenaCellBounds(S.finalArena);
   for (let t = 0; t < 40; t++) {
-    const x = ri(0, COLS - 1);
-    const y = ri(0, ROWS - 1);
+    const x = ri(arena?.x0 ?? 0, (arena?.x1 ?? COLS) - 1);
+    const y = ri(arena?.y0 ?? 0, (arena?.y1 ?? ROWS) - 1);
     if (blockAt(x, y) || S.foods.some((f) => f.x === x && f.y === y)) continue;
     let ty = "n";
     if (!normal) {

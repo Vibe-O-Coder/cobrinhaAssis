@@ -26,6 +26,7 @@
 import { CAPS } from "../core/config.js";
 import { HARD } from "../game/stats.js";
 import { PVP_UPGRADES } from "./pvpupgrades.js";
+import { ULTIMATE_UPGRADES } from "./ultimates.js";
 
 /* Ajudantes de texto: viram o efeito acumulado em porcentagem legível.
    `mulPct` é para efeitos que ainda multiplicam (alcance); as cartas de dano
@@ -316,7 +317,7 @@ export const UPGRADES = [
   },
   {
     id: "x_centauro", ic: "🎯", n: "Flecha Pesada", d: "+35% de dano no tiro do Centauro", max: 3,
-    cls: 7, sum: (l) => "+" + l * 60 + "% no tiro do corpo",
+    cls: 7, sum: (l) => "+" + l * 35 + "% no tiro do corpo",
     f: (p) => (p.xArrow = (p.xArrow || 0) + 0.35),
   },
   {
@@ -335,9 +336,9 @@ export const UPGRADES = [
     f: (p) => (p.xStun = (p.xStun || 0) + 2),
   },
   {
-    id: "x_espectral", ic: "☠️", n: "Maldição Profunda", d: "Amaldiçoados recebem o TRIPLO de dano", max: 1,
-    cls: 11, sum: () => "amaldiçoados recebem o triplo de dano",
-    f: (p) => (p.xCurse = true),
+    id: "x_apostador", ic: "🍀", n: "Banca Generosa", d: "Resultados positivos: +1 cura/escudo e +1 multiplicador de explosão. O azar continua possível.", max: 3,
+    cls: 11, sum: (l) => "+" + l + " na cura, escudos e multiplicador de explosão dos resultados positivos",
+    f: (p) => (p.xLuck = (p.xLuck || 0) + 1),
   },
   {
     id: "x_glutao", ic: "🍗", n: "Estômago de Ferro", d: "Digere bem mais devagar", max: 3,
@@ -386,6 +387,7 @@ export const UPGRADES = [
     sum: (l) => "+" + l * 15 + "% de almas no fim da run",
     f: (p) => (p.soulMult += 0.15),
   },
+  ...ULTIMATE_UPGRADES,
 ];
 
 export const RELICS = [

@@ -8,8 +8,8 @@ const base=process.env.TEST_URL||'http://127.0.0.1:8123',errors=[],results=[];
 fs.mkdirSync('tests/artifacts',{recursive:true});
 async function pair(transport,mode){
  const hc=await browser.newContext(),gc=await browser.newContext(),h=await hc.newPage(),g=await gc.newPage();
- for(const p of [h,g]){p.on('pageerror',e=>errors.push(e.stack));await p.goto(base);await p.waitForFunction(()=>window.SRK?.startRun);await p.locator('[data-act="open-online"]').click();await p.locator(transport).check();}
- await h.locator('#onlineMode').selectOption(mode);await h.locator('[data-act="create-room"]').click();const code=await h.locator('#lobbyCode').textContent();
+ for(const p of [h,g]){p.on('pageerror',e=>errors.push(e.stack));await p.addInitScript(url=>window.COBRINHA_RELAY_URL=url,process.env.RELAY_TEST_URL||'http://127.0.0.1:9000');await p.goto(base);await p.waitForFunction(()=>window.SRK?.startRun);await p.locator('[data-act="open-online"]').click();await p.locator('.net-advanced summary').click();await p.locator(transport).check();}
+ await h.locator('#onlineMode').selectOption(mode);await h.locator('[data-act="create-room"]').click();await h.waitForSelector('#lobby:not(.hidden)');const code=await h.locator('#lobbyCode').textContent();
  await g.locator('#joinCode').fill(code);await g.locator('[data-act="join-room"]').click();
  try {await g.locator('#lobbyGrid .card').nth(7).click({timeout:25000});}catch(e){console.log('HOST STATUS',await h.locator('#lobbyStatus2').textContent());console.log('GUEST STATUS',await g.locator('#onlineStatus').textContent());throw e;}
  await h.locator('#btnStartOnline').click();await g.waitForFunction(()=>SRK.S.rs?.players?.length===2);
@@ -32,11 +32,11 @@ try{
  await h.waitForFunction(()=>SRK.S.players[1].dir.y===-1);
  results.push('Predição visual responde antes do comando atrasado chegar ao host');
  await p.close();
- const rtc=await pair('#nmWebRTC','pvp');await rtc.g.keyboard.press('ArrowUp');await rtc.h.waitForFunction(()=>SRK.S.players[1].dir.y===-1);await rtc.h.waitForFunction(()=>SRK.S.pingMs!==null);
- const ping=await rtc.h.evaluate(()=>SRK.S.pingMs);console.log('WEBRTC PING',ping);
- assert.match(await rtc.h.evaluate(()=>SRK.S.transportLabel),/WebRTC/);
+ const rtc=await pair('#nmRelay','pvp');await rtc.g.keyboard.press('ArrowUp');await rtc.h.waitForFunction(()=>SRK.S.players[1].dir.y===-1);await rtc.h.waitForFunction(()=>SRK.S.pingMs!==null);
+ const ping=await rtc.h.evaluate(()=>SRK.S.pingMs);console.log('RELAY PING',ping);
+ assert.match(await rtc.h.evaluate(()=>SRK.S.transportLabel),/Servidor de partidas/);
  await rtc.g.evaluate(()=>{SRK.S.net.close();});await rtc.h.waitForSelector('#over:not(.hidden)');assert.equal(await rtc.h.evaluate(()=>SRK.S.pvp.winner),0);
- results.push('PVP WebRTC: conexão direta, controles e vitória por desconexão');
+ results.push('PVP relay autenticado: conexão, controles e vitória por desconexão');
  await rtc.close();
  const left=await pair('#nmPhp','pvp');
  await left.h.evaluate(()=>{SRK.S.pvp.t=100;SRK.S.players[1].level=7;SRK.S.players[1].pvpKills=2;SRK.S.players[1].kills=15;});

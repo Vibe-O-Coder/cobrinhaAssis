@@ -21,6 +21,7 @@ import { eatFoodAt, blockAt } from "./food.js";
 import { gameOver } from "./run.js";
 /* Mesmo ciclo proposital dos dois acima: pvp.js importa headPx daqui. */
 import { isPvp, pvpBounds, wrapX, wrapY, pvpEnd, pvpAimTarget, pvpHit } from "./pvp.js";
+import { wrapArenaX, wrapArenaY } from "./arena.js";
 
 export function headPx(p) {
   return {
@@ -154,7 +155,7 @@ export function makePlayer(cls, idx) {
   /* Poderes iniciais da loja de almas. Agora respeitam pré-requisito e teto:
      antes um `pick(UPGRADES)` solto podia entregar "Veneno Concentrado" sem
      veneno, ou "Ímã de Comida" duas vezes. */
-  const startN = (upg.ben || 0) + (upg.ini || 0) + (S.mode !== "pvp" && save.supplies.blessing > 0 ? 1 : 0);
+  const startN = ((upg.ben || 0) + (upg.ini || 0) + (S.mode !== "pvp" && save.supplies.blessing > 0 ? 1 : 0)) * (cls === 11 ? 2 : 1);
   for (let i = 0; i < startN; i++) {
     const pool = UPGRADES.filter((u) => canOffer(u, p));
     if (!pool.length) break;
@@ -319,8 +320,6 @@ export function damagePlayer(p, n) {
   /* Dano pode ser fracionário (1,5 nos atos V-VII, 2 do VIII em diante, e +0,5
      no modo difícil), então existe meio coração. O arredondamento evita que
      somas de 0,5 deixem um resto de 0,0000001 de vida. */
-  // Espectral: -defesa. É o preço da maldição que ele espalha pelo corpo.
-  if (p.cls === 11) n *= 1.4;
   p.hp = Math.round((p.hp - n) * 2) / 2;
   p.iframes = 1.3 + p.iframeBonus;
   S.shake = Math.min(12, S.shake + 7);
@@ -358,6 +357,9 @@ export function damagePlayer(p, n) {
 }
 
 export function updatePlayer(p, dt, fireShots) {
+  if (S.finalArena) {
+    p.cells = p.cells.map(([x,y]) => [wrapArenaX(x,S.finalArena),wrapArenaY(y,S.finalArena)]);
+  }
   p.iframes = Math.max(0, p.iframes - dt);
   p.shieldT = Math.max(0, p.shieldT - dt);
   p.abT = Math.max(0, p.abT - dt);
@@ -405,8 +407,8 @@ export function stepSnake(p) {
      sempre. Na morte súbita eles dobram dentro da caixinha, que é o que
      impede os dois de simplesmente correrem para lados opostos do mapa. */
   const b = pvpBounds();
-  const nx = wrapX(h[0] + p.dir.x, b);
-  const ny = wrapY(h[1] + p.dir.y, b);
+  const nx = S.finalArena ? wrapArenaX(h[0] + p.dir.x, S.finalArena) : wrapX(h[0] + p.dir.x, b);
+  const ny = S.finalArena ? wrapArenaY(h[1] + p.dir.y, S.finalArena) : wrapY(h[1] + p.dir.y, b);
   p.cells.unshift([nx, ny]);
   if (p.grow > 0) p.grow--;
   else p.cells.pop();
@@ -419,9 +421,7 @@ export function stepSnake(p) {
      existe. No difícil ela tira 2 e no impossível 4.
 
      `tailDmg === 0` desliga a checagem inteira, então o modo normal nem paga o
-     custo do laço. A Fase Ectoplasmática do Espectral também atravessa: era
-     literalmente parte do pedido da classe ("pode cruzar o próprio corpo
-     livremente, mesmo no modo difícil").
+     custo do laço. Ultimates com efeito de fase também permitem atravessar.
 
      Começa no índice 4 porque os três primeiros segmentos são o pescoço e
      estão sempre colados na cabeça por construção. */

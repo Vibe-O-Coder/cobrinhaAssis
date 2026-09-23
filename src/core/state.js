@@ -49,6 +49,8 @@ export const S = {
   bossQueue: [], // chefes que ainda faltam nascer nesta onda
   waveBoss: "boss",
   waveMod: null,
+  finalArena: null,
+  bossHazards: [],
   eid: 0,
 
   /* --- tempo / câmera / feedback --- */
@@ -124,6 +126,8 @@ export function resetRun() {
   S.bossQueue = [];
   S.waveBoss = "boss";
   S.waveMod = null;
+  S.finalArena = null;
+  S.bossHazards = [];
   S.shake = 0;
   S.flash = 0;
   S.foodT = 0;

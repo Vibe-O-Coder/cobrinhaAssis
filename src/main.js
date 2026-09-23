@@ -23,7 +23,7 @@ import { startRun, abandonRun } from "./game/run.js";
 
 import {
   openOnline, createRoom, joinRoom, cancelNet, leaveOnline,
-  hostStart, toMenu, copyRoomCode,
+  hostStart, toMenu, copyRoomCode, refreshRooms, generateRoomPassword,
 } from "./net/online.js";
 
 /* ---------- ações dos botões ---------- */
@@ -62,6 +62,8 @@ const ACTIONS = {
 
   "create-room": () => createRoom(),
   "join-room": () => joinRoom(),
+  "refresh-rooms": () => refreshRooms(),
+  "generate-password": () => generateRoomPassword(),
   "copy-code": () => copyRoomCode(),
   "cancel-net": () => cancelNet(),
   "leave-online": () => {

@@ -16,7 +16,7 @@
 import { S } from "../core/state.js";
 import { W, H, CAM_LERP, CELL } from "../core/config.js";
 import { clamp } from "../core/utils.js";
-import { VP, panes } from "./viewport.js";
+import { VP, panes, arenaZoom } from "./viewport.js";
 
 /** Ponto que a câmera quer enquadrar.
     `who >= 0` segue só aquele jogador (PVP); `who < 0` segue o meio do grupo. */
@@ -54,6 +54,12 @@ function focusFromSnapshot(rs, who) {
     ~600x450), `Math.max(0, W - w)` vira 0 e a câmera trava no canto — é o
     comportamento certo: não há para onde rolar. */
 function target(f, w, h) {
+  if (S.finalArena) {
+    const a = S.finalArena, z = arenaZoom({ w, h }, a);
+    // Telas altas mantêm o chefe na parte superior, sem centralizar uma faixa
+    // pequena de combate no meio de um canvas vertical.
+    return { x: a.x + a.w/2 - w/(2*z), y: a.y - Math.min((h/z-a.h)/2, 70/z) };
+  }
   return {
     x: clamp(f.x - w / 2, 0, Math.max(0, W - w)),
     y: clamp(f.y - h / 2, 0, Math.max(0, H - h)),
@@ -70,8 +76,8 @@ export function updateCamera(dt) {
   const k = 1 - Math.exp(-CAM_LERP * dt); // suavização independente de FPS
   for (const p of panes()) {
     const t = target(focusOf(p.who), p.w, p.h);
-    p.cam.x += (t.x - p.cam.x) * k;
-    p.cam.y += (t.y - p.cam.y) * k;
+    p.cam.x += (t.x - p.cam.x) * (S.finalArena ? 1 : k);
+    p.cam.y += (t.y - p.cam.y) * (S.finalArena ? 1 : k);
   }
 }
 

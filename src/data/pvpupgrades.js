@@ -18,6 +18,7 @@
    propósito: game/picks.js sorteia dos dois baralhos com o mesmo código. */
 
 import { ITEMS } from "./pvp.js";
+import { PVP_ULTIMATE_UPGRADES } from "./ultimates.js";
 
 const n1 = (v) => String(Math.round(v * 10) / 10).replace(".", ",");
 
@@ -193,4 +194,11 @@ export const PVP_UPGRADES = [
     sum: (l) => "+" + l * 10 + "% de dano e +" + l * 2 + " de vida máxima",
     f: (p) => { p.dmgMul += 0.1; p.maxHp += 2; p.hp = Math.min(p.maxHp, p.hp + 2); },
   },
+  {
+    id: 'p_x_apostador', cls: 11, ic: '🍀', n: 'Banca Generosa', max: 3,
+    d: 'Resultados positivos do dado ganham +1 de cura/escudo e de multiplicador da explosão.',
+    sum: l => '+' + l + ' nos prêmios positivos; os dez resultados continuam possíveis',
+    f: p => { p.xLuck = (p.xLuck || 0) + 1; },
+  },
+  ...PVP_ULTIMATE_UPGRADES,
 ];

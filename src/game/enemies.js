@@ -15,6 +15,8 @@ import { spawnDrop } from "./food.js";
 import { stackHpMul, stackXpMul, stackEnemyCap } from "../data/pvp.js";
 import { isPvp } from "./pvp.js";
 import { banner } from "../ui/screens.js";
+import { MAX_ENEMIES, MAX_ENEMY_BULLETS, scaledEnemyHp, enemySpdMul } from "../core/scaling.js";
+import { updateBoss, tickBossHazards, protectBossPhase, bossSynergy, addEnemyHazard } from "./bosses.js";
 
 /* ---------------- helpers ---------------- */
 
@@ -24,6 +26,7 @@ import { banner } from "../ui/screens.js";
 let shooting = null;
 
 function eb(x, y, ang, sp, o = {}) {
+  if (S.ebullets.length >= MAX_ENEMY_BULLETS) return;
   S.ebullets.push({
     x, y,
     vx: Math.cos(ang) * sp,
@@ -52,10 +55,11 @@ function fan(e, ang, n, spread, sp, o = {}) {
 export function newMinion(x, y) {
   const d = EDEF.mini;
   const stacks = isPvp() ? S.pvp.stacks : 0;
+  const hp = isPvp() ? d.hp * stackHpMul(stacks) : scaledEnemyHp(d, S.wave, S.players) * 0.7;
   return {
     id: S.eid++, type: "mini", x, y,
     pvpXp: Math.round(2 * stackXpMul(stacks)),
-    hp: d.hp * stackHpMul(stacks), mhp: d.hp * stackHpMul(stacks), spd: d.spd * (1 + stacks*0.012), r: d.r, score: d.score,
+    hp, mhp: hp, spd: d.spd * (isPvp() ? 1 + stacks * 0.012 : enemySpdMul(S.wave)), r: d.r, score: d.score,
     shT: 99, flash: 0, dot: 0, dotT: 0, lastHitBy: null,
     elite: false, enraged: false, ward: 0, tier: 0, affixes: [],
   };
@@ -67,7 +71,7 @@ export function newMinion(x, y) {
    São três coisas diferentes de propósito:
      slow   diminui a velocidade (Criomante, Cronomante) — ainda age e atira
      stun   congela a AÇÃO inteira (Chocalho da Cascavel, Zero Absoluto)
-     cursed recebe o DOBRO de dano (corpo do Espectral)
+     cursed recebe o DOBRO de dano (ultimates de maldição)
 
    Chefe leva metade do tempo de atordoamento; sem isso um Chocalho a cada 10s
    travaria a luta de chefe inteira e apagaria todo o moveset que acabou de ser
@@ -116,10 +120,11 @@ export function cleanupEnemies() {
   if (cleaning) return;
   cleaning = true;
   try {
-    for (let guard = 0; guard < 128; guard++) {
+    for (let guard = 0; guard < MAX_ENEMIES * 6; guard++) {
       let found = false;
       for (let i = S.enemies.length - 1; i >= 0; i--) {
         const e = S.enemies[i];
+        if (e) protectBossPhase(e); // inclui dano das explosões encadeadas desta varredura
         if (!e || e.hp > 0) continue;
         S.enemies.splice(i, 1);
         onEnemyDeath(e);
@@ -192,6 +197,7 @@ function onEnemyDeath(e) {
   if (e.type.startsWith("splitter")) {
     const n = e.type === "splitter_abissal" ? 3 : 2;
     for (let k = 0; k < n; k++) {
+      if (S.enemies.length >= MAX_ENEMIES) break;
       if (isPvp() && S.enemies.length >= stackEnemyCap(S.pvp.stacks)) break;
       S.enemies.push(newMinion(e.x + rnd(-12, 12), e.y + rnd(-12, 12)));
     }
@@ -291,8 +297,10 @@ export function updateEnemies(dt) {
       if (dist(g.x, g.y, e.x, e.y) < 150) e.ward = Math.max(e.ward, red);
     }
   }
+  bossSynergy(S.enemies);
 
   for (const e of S.enemies) {
+    protectBossPhase(e);
     if (e.hp <= 0) continue; // já morto neste frame: não age, não é curado
 
     e.flash = Math.max(0, e.flash - dt);
@@ -304,6 +312,7 @@ export function updateEnemies(dt) {
 
     const def = EDEF[e.type] || EDEF.grunter;
     const pattern = def.pattern || "chase";
+    if (e.hazards?.length) tickBossHazards(e, dt);
 
     /* AFIXO "Frenético" e a fúria herdada do "Vingativo": arrancadas de
        velocidade. Ficam fora de e.spd para não se acumularem para sempre. */
@@ -331,9 +340,10 @@ export function updateEnemies(dt) {
     // Brecha de punição: enquanto aberta, o chefe recebe 50% mais dano.
     e.openT = Math.max(0, (e.openT || 0) - dt);
     if (e.openT > 0) e.ward = -0.5;
+    if (e.phaseLockT > 0) e.ward = 1;
 
     // Chefes enfurecem — o limiar sobe nos modos difícil e impossível.
-    if (def.boss && !e.enraged && e.hp < e.mhp * MODE().enrageAt) {
+    if (def.boss && !e.bossGates && !e.enraged && e.hp < e.mhp * MODE().enrageAt) {
       e.enraged = true;
       e.spd *= 1.3;
       S.shake = Math.min(14, S.shake + 8);
@@ -362,7 +372,9 @@ export function updateEnemies(dt) {
       addParts(e.x, e.y, (def.c || "#fff"), 2);
     }
 
-    const chase = runPattern(e, def, pattern, dt, tgt, Hh, Hv);
+    const chase = def.boss
+      ? updateBoss(e, def, dt, Hh, newMinion)
+      : runPattern(e, def, pattern, dt, tgt, Hh, Hv);
 
     if (chase && tgt && Hh && !(e.dashT > 0)) {
       const d = dist(e.x, e.y, Hh.x, Hh.y) || 1;
@@ -400,6 +412,7 @@ export function updateEnemies(dt) {
 
   separate();
   cleanupEnemies();
+  S.bossHazards = S.enemies.flatMap(e => (e.hazards || []).map(({ pulse, ...h }) => h));
 }
 
 /** Empurra inimigos sobrepostos. */
@@ -410,6 +423,7 @@ function separate() {
       const a = S.enemies[i];
       const b = S.enemies[j];
       if (!a || !b) continue;
+      if (a.anchored || b.anchored) continue;
       const d = dist(a.x, a.y, b.x, b.y);
       const m = a.r + b.r - 4;
       if (d < m && d > 0) {
@@ -425,62 +439,6 @@ function separate() {
   }
 }
 
-/* BRECHA DE PUNIÇÃO.
-
-   A crítica era direta: "bosses que só ficam jogando projéteis, mesmo que seja
-   o mais básico, fica meio chato". O problema não era a quantidade de projétil
-   — era não existir CONVERSA. O chefe atacava o tempo todo e você atirava o
-   tempo todo; nenhum dos dois tinha momento.
-
-   Agora todo golpe pesado termina numa brecha: o chefe fica exposto e recebe
-   50% MAIS dano (ward negativo). Isso cria o laço "leia a antecipação, desvie,
-   puna", e faz a luta premiar quem entende o padrão em vez de quem tem mais
-   projétil por segundo. O anel branco em volta dele é o aviso visual. */
-function openWindow(e, secs) {
-  e.openT = Math.max(e.openT || 0, secs);
-}
-
-/* Ciclo de golpe: ANTECIPAÇÃO -> GOLPE -> BRECHA, em lista.
-   Cada movimento é {wind, hit, open, tele, strike, chase}. `tele` desenha o
-   aviso, `strike` executa. Devolve se o chefe persegue neste frame. */
-function bossCycle(e, dt, moves) {
-  if (!moves.length) return true;
-  if (e.mv === undefined) {
-    e.mv = 0;
-    e.mvSt = "wind";
-    e.mvT = moves[0].wind;
-    if (moves[0].tele) moves[0].tele(e);
-  }
-  const m = moves[Math.min(e.mv, moves.length - 1)];
-  e.mvT -= dt;
-
-  if (e.mvT > 0) {
-    if (e.mvSt === "wind") return m.chaseOnWind !== false;
-    if (e.mvSt === "open") return false; // parado e exposto
-    return false;
-  }
-
-  if (e.mvSt === "wind") {
-    e.mvSt = "hit";
-    e.mvT = m.hit;
-    if (m.strike) m.strike(e);
-    return false;
-  }
-  if (e.mvSt === "hit") {
-    e.mvSt = "open";
-    e.mvT = m.open;
-    openWindow(e, m.open);
-    return false;
-  }
-  // fim da brecha: próximo movimento
-  e.mv = (e.mv + 1) % moves.length;
-  e.mvSt = "wind";
-  const nx = moves[e.mv];
-  e.mvT = nx.wind;
-  if (nx.tele) nx.tele(e);
-  return nx.chaseOnWind !== false;
-}
-
 /** Devolve true se o inimigo ainda deve perseguir o alvo neste frame. */
 function runPattern(e, def, pattern, dt, tgt, Hh, Hv) {
   shooting = e;
@@ -488,6 +446,46 @@ function runPattern(e, def, pattern, dt, tgt, Hh, Hv) {
   const rage = S.waveMod && S.waveMod.id === "rage";
 
   switch (pattern) {
+    case "mortar": {
+      if (!Hh) return true;
+      if (e.shT <= 0 && dist(e.x, e.y, Hh.x, Hh.y) < 820) {
+        e.shT = Math.max(2.5, 4.2 - (e.tier || 0) * 0.25);
+        const target = { x: clamp(Hh.x + (Hv?.vx || 0) * 0.5, 20, W - 20),
+          y: clamp(Hh.y + (Hv?.vy || 0) * 0.5, 20, H - 20) };
+        addEnemyHazard(e, { shape: "circle", ...target, r: 75 + (e.tier || 0) * 6,
+          delay: 1.2, life: 0.4, c: def.c });
+      }
+      return dist(e.x, e.y, Hh.x, Hh.y) > 420;
+    }
+    case "crossfire": {
+      if (!Hh) return true;
+      if (e.shT <= 0 && dist(e.x, e.y, Hh.x, Hh.y) < 520) {
+        e.shT = 3.4;
+        const a = Math.atan2(Hh.y - e.y, Hh.x - e.x);
+        for (const offset of [-0.25, 0.25]) addEnemyHazard(e, {
+          shape: "line", x: e.x, y: e.y,
+          x2: e.x + Math.cos(a + offset) * 600, y2: e.y + Math.sin(a + offset) * 600,
+          width: 16, delay: 1, life: 0.35, c: def.c,
+        });
+      }
+      return true;
+    }
+    case "stalk": {
+      if (!Hh) return true;
+      e.ph = (e.ph || 0) + dt * 2;
+      const d = dist(e.x, e.y, Hh.x, Hh.y) || 1;
+      const side = Math.sin(e.ph) >= 0 ? 1 : -1;
+      const tx = Hh.x - (Hv?.vx || 0) * 0.65 - (Hh.y - e.y) / d * 95 * side;
+      const ty = Hh.y - (Hv?.vy || 0) * 0.65 + (Hh.x - e.x) / d * 95 * side;
+      const to = dist(e.x, e.y, tx, ty) || 1;
+      e.x += (tx - e.x) / to * e.spdNow * dt;
+      e.y += (ty - e.y) / to * e.spdNow * dt;
+      if (e.shT <= 0 && d < 350) {
+        e.shT = 2.4;
+        fan(e, Math.atan2(Hh.y - e.y, Hh.x - e.x), 3, 0.15, 205, { c: def.c, life: 2.2 });
+      }
+      return false;
+    }
     /* ---------- movimento simples ---------- */
     case "chase":
       return true;
@@ -786,346 +784,6 @@ function runPattern(e, def, pattern, dt, tgt, Hh, Hv) {
       if (e.shT <= 0) {
         e.shT = 1.4;
         ring(e.x, e.y, 150, def.c, 2);
-      }
-      return true;
-    }
-
-    /* ---------- CHEFES ---------- */
-    case "boss_nova": {
-      if (Hh && dist(e.x, e.y, Hh.x, Hh.y) < 520 && e.shT <= 0) {
-        e.shT = e.enraged ? 1.5 : 2.2;
-        radial(e, e.enraged ? 12 : 8, 150, { r: 7, life: 4, c: def.c });
-        ring(e.x, e.y, 120, def.c, 5);
-        openWindow(e, 0.9); // brecha depois da nova
-      }
-      return true;
-    }
-
-    case "boss_summon": {
-      if (e.shT <= 0) {
-        e.shT = e.enraged ? 1.6 : 2.4;
-        radial(e, 10, 150, { r: 7, life: 5, c: def.c });
-      }
-      e.sum = (e.sum ?? 6) - dt;
-      if (e.sum <= 0 && S.enemies.length < 44) {
-        e.sum = e.enraged ? 4 : 7;
-        for (let k = 0; k < 2; k++) {
-          S.enemies.push(newMinion(e.x + rnd(-24, 24), e.y + rnd(-24, 24)));
-        }
-        addParts(e.x, e.y, def.c, 16, 2);
-        openWindow(e, 1.1); // invocar custa caro: ele fica aberto
-      }
-      return true;
-    }
-
-    case "boss_dash": {
-      e.st = e.st ?? "chase";
-      e.t = (e.t ?? 2) - dt;
-      if (e.st === "chase") {
-        if (e.t <= 0) { e.st = "wind"; e.t = 0.7; }
-        return true;
-      }
-      if (e.st === "wind") {
-        if (e.t <= 0 && Hh) {
-          e.st = "dash";
-          e.t = 0.8;
-          const d = dist(e.x, e.y, Hh.x, Hh.y) || 1;
-          e.dx = (Hh.x - e.x) / d;
-          e.dy = (Hh.y - e.y) / d;
-          aim(e.x, e.y, e.x + e.dx * 420, e.y + e.dy * 420, def.c, 0.6);
-        }
-        return false;
-      }
-      if (e.st === "dash") {
-        e.x = clamp(e.x + e.dx * (e.enraged ? 540 : 450) * dt, -40, W + 40);
-        e.y = clamp(e.y + e.dy * (e.enraged ? 540 : 450) * dt, -40, H + 40);
-        if (e.t <= 0) {
-          e.st = "chase";
-          e.t = e.enraged ? 1.4 : 2.2;
-          radial(e, 6, 170, { r: 6, life: 3, c: def.c });
-          quake(e.x, e.y, 170, def.c);
-          openWindow(e, 1.3); // fim da investida: a maior brecha da luta
-        }
-        return false;
-      }
-      return true;
-    }
-
-    case "boss_blink": {
-      e.tp = (e.tp ?? 2.5) - dt;
-      if (e.tp <= 0 && Hh) {
-        e.tp = e.enraged ? 2.6 : 3.6;
-        addParts(e.x, e.y, "#7c6bff", 20, 3);
-        const a = rnd(0, TAU);
-        const rr = rnd(150, 250);
-        e.x = clamp(Hh.x + Math.cos(a) * rr, 30, W - 30);
-        e.y = clamp(Hh.y + Math.sin(a) * rr, 30, H - 30);
-        addParts(e.x, e.y, "#b04dff", 20, 3);
-        ring(e.x, e.y, 160, "#b04dff", 5);
-        radial(e, 12, 160, { r: 6, life: 4, c: def.c });
-        openWindow(e, 0.8); // logo depois de reaparecer ele está exposto
-      }
-      return e.tp > 0.4;
-    }
-
-    /* O Prisma: varre a arena com dois feixes giratórios. */
-    case "boss_laser": {
-      /* Antes ele varria a arena SEM PARAR: não havia instante seguro nem
-         momento de punição, e a luta virava atrito puro. Agora varre por alguns
-         segundos e precisa recarregar, de olhos abertos. */
-      e.laserT = (e.laserT ?? 3.4) - dt;
-      if (e.laserT <= 0) {
-        e.laserT = (e.enraged ? 2.6 : 3.4) + 1.4;
-        openWindow(e, 1.4);
-      }
-      if (e.openT > 0) return true; // recarregando: só persegue
-      e.spin = (e.spin ?? 0) + dt * (e.enraged ? 1.1 : 0.7);
-      if (e.shT <= 0) {
-        e.shT = 0.1;
-        const arms = e.enraged ? 3 : 2;
-        for (let i = 0; i < arms; i++) {
-          const a = e.spin + (i / arms) * TAU;
-          beam(e.x, e.y, a, 560, 7, 0.14, def.c);
-          // O feixe machuca quem estiver na linha.
-          for (const p of S.players) {
-            if (p.dead) continue;
-            const h = headPx(p);
-            const d = dist(e.x, e.y, h.x, h.y);
-            if (d > 560) continue;
-            const pa = Math.atan2(h.y - e.y, h.x - e.x);
-            let diff = Math.abs(((pa - a + Math.PI * 3) % TAU) - Math.PI);
-            if (diff < 0.08) hitPlayer(p);
-          }
-        }
-      }
-      return true;
-    }
-
-    /* A Colmeia: satélites que orbitam e atiram. */
-    case "boss_orbitals": {
-      e.orb = (e.orb ?? 0) + dt * 1.6;
-      e.sats = e.sats ?? (e.enraged ? 5 : 4);
-      if (e.shT <= 0) {
-        e.shT = e.enraged ? 1.1 : 1.7;
-        const n = e.enraged ? 5 : 4;
-        for (let i = 0; i < n; i++) {
-          const a = e.orb + (i / n) * TAU;
-          const sx = e.x + Math.cos(a) * 90;
-          const sy = e.y + Math.sin(a) * 90;
-          if (Hh) {
-            eb(sx, sy, Math.atan2(Hh.y - sy, Hh.x - sx), 200, {
-              c: def.c, r: 6, life: 4, turn: 0.9,
-            });
-          }
-          addParts(sx, sy, def.c, 3);
-        }
-        openWindow(e, 0.7);
-      }
-      return true;
-    }
-
-    /* O Arauto: alterna entre três fases a cada poucos segundos. */
-    case "boss_herald": {
-      e.ph2 = (e.ph2 ?? 0) - dt;
-      if (e.ph2 <= 0) {
-        e.ph2 = e.enraged ? 3.2 : 4.5;
-        e.mode = ((e.mode ?? 0) + 1) % 3;
-        ring(e.x, e.y, 200, def.c, 6);
-        openWindow(e, 1.0); // a troca de fase é a janela de punição dele
-      }
-      if (e.shT <= 0) {
-        if (e.mode === 0) {
-          e.shT = e.enraged ? 1.2 : 1.8;
-          radial(e, 14, 165, { r: 7, life: 4.5, c: def.c });
-        } else if (e.mode === 1) {
-          e.shT = 0.12;
-          e.spiral = (e.spiral ?? 0) + 0.42;
-          for (let i = 0; i < 3; i++) {
-            eb(e.x, e.y, e.spiral + (i / 3) * TAU, 185, { c: def.c, r: 6, life: 3.6 });
-          }
-        } else {
-          e.shT = 2.6;
-          if (S.enemies.length < 46) {
-            for (let k = 0; k < 3; k++) {
-              S.enemies.push(newMinion(e.x + rnd(-30, 30), e.y + rnd(-30, 30)));
-            }
-          }
-          if (Hh) fan(e, Math.atan2(Hh.y - e.y, Hh.x - e.x), 7, 0.2, 200, { c: def.c });
-        }
-      }
-      return e.mode !== 1;
-    }
-
-    /* PESTILENTA, A MÃE DA PRAGA — chefe do ato VIII.
-       O pedido era "boss que cancela regeneração por um longo tempo". O truque
-       é que ela não faz isso de graça: cada praga é telegrafada e deixa ela
-       aberta depois. Você escolhe entre furar a nuvem (e perder a cura por 14s)
-       ou dar a volta e perder a janela de dano. */
-    case "boss_plague": {
-      if (!Hh) return true;
-      return bossCycle(e, dt, [
-        {
-          wind: 1.1, hit: 0.2, open: 1.3,
-          tele: (b) => {
-            bombWarning(b.x, b.y, 300, 1.1, "rgba(139,214,74,0.28)");
-            addText(b.x, b.y - b.r - 24, "PRAGA", "#8bd64a", 1, 16);
-          },
-          strike: (b) => {
-            ring(b.x, b.y, 300, "#8bd64a", 7);
-            shockwave(b.x, b.y, 300, "#8bd64a", 9);
-            for (const q of S.players) {
-              if (q.dead) continue;
-              const h = headPx(q);
-              if (dist(b.x, b.y, h.x, h.y) < 300) {
-                blockRegen(q, e.enraged ? 18 : 14);
-                hitPlayer(q);
-              }
-            }
-          },
-        },
-        {
-          wind: 0.8, hit: 0.35, open: 1.0, chaseOnWind: false,
-          tele: (b) => aim(b.x, b.y, Hh.x, Hh.y, "#8bd64a", 0.8),
-          strike: (b) => {
-            fan(b, Math.atan2(Hh.y - b.y, Hh.x - b.x), e.enraged ? 9 : 7, 0.18,
-              210, { c: "#8bd64a", life: 4, r: 6 });
-          },
-        },
-        {
-          wind: 0.9, hit: 0.3, open: 1.6,
-          tele: (b) => ring(b.x, b.y, 150, "#6fc93c", 5),
-          strike: (b) => {
-            if (S.enemies.length < 46) {
-              for (let k = 0; k < (e.enraged ? 3 : 2); k++) {
-                const m = newMinion(b.x + rnd(-30, 30), b.y + rnd(-30, 30));
-                m.affixes = ["noregen"]; // as crias também desligam a cura
-                S.enemies.push(m);
-              }
-            }
-            radial(b, 10, 170, { c: "#8bd64a", life: 4, r: 6 });
-          },
-        },
-      ]);
-    }
-
-    /* O TIRANO DE FERRO — chefe do ato IX.
-       O pedido era "boss que diminui o ataque ao atingir o player". Ele é uma
-       corrida contra o próprio relógio: cada golpe que acerta tira 10% do seu
-       dano (até -40%), então quanto mais a luta demora, menos você machuca.
-       A saída é a brecha longa depois da investida. */
-    case "boss_tyrant": {
-      if (!Hh) return true;
-      return bossCycle(e, dt, [
-        {
-          wind: 0.75, hit: 0.55, open: 1.5, chaseOnWind: false,
-          tele: (b) => {
-            const d = dist(b.x, b.y, Hh.x, Hh.y) || 1;
-            b.dx = (Hh.x - b.x) / d;
-            b.dy = (Hh.y - b.y) / d;
-            aim(b.x, b.y, b.x + b.dx * 520, b.y + b.dy * 520, "#ff4d9d", 0.75);
-          },
-          strike: (b) => {
-            b.dashT = e.enraged ? 0.6 : 0.5;
-            quake(b.x, b.y, 150, "#ff4d9d");
-          },
-        },
-        {
-          wind: 0.9, hit: 0.25, open: 1.2,
-          tele: (b) => bombWarning(b.x, b.y, 250, 0.9, "rgba(255,77,157,0.3)"),
-          strike: (b) => {
-            shockwave(b.x, b.y, 250, "#ff4d9d", 10);
-            quake(b.x, b.y, 250, "#ff4d9d");
-            S.shake = Math.min(18, S.shake + 10);
-            for (const q of S.players) {
-              if (q.dead) continue;
-              const h = headPx(q);
-              if (dist(b.x, b.y, h.x, h.y) < 250) {
-                const antes = q.hp;
-                hitPlayer(q);
-                if (q.hp < antes) weaken(q, 8);
-              }
-            }
-          },
-        },
-        {
-          wind: 0.7, hit: 0.9, open: 1.1, chaseOnWind: false,
-          tele: (b) => ring(b.x, b.y, 200, "#ff9ec7", 5),
-          strike: (b) => {
-            b.spiral = (b.spiral ?? 0) + 0.4;
-            for (let i = 0; i < (e.enraged ? 14 : 10); i++) {
-              eb(b.x, b.y, b.spiral + (i / 10) * TAU, 195,
-                { c: "#ff4d9d", life: 4, r: 6 });
-            }
-          },
-        },
-      ]);
-    }
-
-    /* O DEVORADOR DE MUNDOS: chefe final, 3 fases por faixa de vida. */
-    case "boss_final": {
-      const frac = e.hp / e.mhp;
-      const phase = frac > 0.66 ? 0 : frac > 0.33 ? 1 : 2;
-      if (e.fphase !== phase) {
-        e.fphase = phase;
-        e.shT = 1.2;
-        shockwave(e.x, e.y, 420, def.c, 16);
-        S.shake = 18;
-        S.flash = 0.4;
-        sfx("boss");
-        addText(e.x, e.y - e.r - 30,
-          ["FASE I", "FASE II", "FASE III — O FIM"][phase], "#ffd75e", 2, 22);
-      }
-
-      if (phase === 0) {
-        if (e.shT <= 0) {
-          e.shT = 1.5;
-          radial(e, 16, 160, { r: 8, life: 5, c: def.c });
-          ring(e.x, e.y, 180, def.c, 6);
-          openWindow(e, 0.8);
-        }
-        return true;
-      }
-      if (phase === 1) {
-        e.spin = (e.spin ?? 0) + dt * 0.9;
-        if (e.shT <= 0) {
-          e.shT = 0.1;
-          for (let i = 0; i < 4; i++) {
-            beam(e.x, e.y, e.spin + (i / 4) * TAU, 620, 8, 0.14, def.c);
-            for (const p of S.players) {
-              if (p.dead) continue;
-              const h = headPx(p);
-              if (dist(e.x, e.y, h.x, h.y) > 620) continue;
-              const pa = Math.atan2(h.y - e.y, h.x - e.x);
-              const a = e.spin + (i / 4) * TAU;
-              const diff = Math.abs(((pa - a + Math.PI * 3) % TAU) - Math.PI);
-              if (diff < 0.07) hitPlayer(p);
-            }
-          }
-        }
-        e.sum = (e.sum ?? 4) - dt;
-        if (e.sum <= 0 && S.enemies.length < 50) {
-          e.sum = 5;
-          for (let k = 0; k < 3; k++) {
-            S.enemies.push(newMinion(e.x + rnd(-36, 36), e.y + rnd(-36, 36)));
-          }
-        }
-        return true;
-      }
-      // fase 3: teleporte + tudo junto
-      e.tp = (e.tp ?? 3) - dt;
-      if (e.tp <= 0 && Hh) {
-        e.tp = 3.4;
-        addParts(e.x, e.y, def.c, 26, 3);
-        const a = rnd(0, TAU);
-        e.x = clamp(Hh.x + Math.cos(a) * 240, 40, W - 40);
-        e.y = clamp(Hh.y + Math.sin(a) * 240, 40, H - 40);
-        addParts(e.x, e.y, "#fff", 26, 3);
-        shockwave(e.x, e.y, 300, "#fff", 10);
-      }
-      if (e.shT <= 0) {
-        e.shT = 0.9;
-        radial(e, 20, 175, { r: 8, life: 5, c: def.c });
-        if (Hh) fan(e, Math.atan2(Hh.y - e.y, Hh.x - e.x), 5, 0.16, 260, { c: "#fff", turn: 0.6 });
       }
       return true;
     }

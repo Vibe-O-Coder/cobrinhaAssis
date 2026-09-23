@@ -297,7 +297,7 @@ export function artBossElite(r, e) {
 
 /* 🌑 boss_final — O DEVORADOR DE MUNDOS: buraco negro coroado. */
 export function artBossFinal(r, e) {
-  const phase = (e && e.fphase) || 0;
+  const phase = (e && (e.bossPhase ?? e.fphase)) || 0;
   const t = S.gameT;
   const halo = ["#ffd75e", "#ff9838", "#ff2e2e"][phase] || "#ffd75e";
 

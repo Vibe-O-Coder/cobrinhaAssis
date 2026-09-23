@@ -61,3 +61,8 @@ export function setPane(p) {
 export function resetPane() {
   setPane({ x: 0, y: 0, w: CANVAS.w, h: CANVAS.h, cam: S.cam, who: -1 });
 }
+
+/** Enquadra toda a luta final em qualquer proporção de tela. */
+export function arenaZoom(p, arena = S.finalArena) {
+  return arena ? Math.min(p.w / (arena.w + 56), p.h / (arena.h + 56)) : 1;
+}

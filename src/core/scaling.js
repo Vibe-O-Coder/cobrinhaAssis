@@ -19,6 +19,45 @@
 import { ACT_LEN, ACTS, FINAL_WAVE } from "./config.js";
 import { clamp } from "./utils.js";
 
+export const MAX_ENEMIES = 200;
+export const MAX_ENEMY_BULLETS = 900;
+
+/** Poder sustentado do equipamento, sem debuffs ou bônus temporários.
+ * Capturado no nascimento: ganhar um upgrade durante a luta nunca cura o chefe.
+ * O leque inteiro não acerta um alvo pequeno, mas chefes grandes recebem mais. */
+export function playerPower(p, boss = false) {
+  if (!p || p.dead) return 0;
+  const num = (v, fallback = 0) => Number.isFinite(v) ? Math.max(0, v) : fallback;
+  const size = Math.max(1, num(p.sizeMul, 1));
+  const damage = (num(p.dmg, 1) * Math.max(1, num(p.dmgMul, 1)) + num(p.dmgFlat)) * size;
+  const critical = 1 + Math.min(1, num(p.crit)) * Math.max(0, num(p.critDmg, 2) - 1);
+  const shots = 1 + (Math.min(12, Math.max(1, num(p.shots, 1))) - 1) * (boss ? 0.8 : 0.35);
+  const interval = Math.max(0.06, num(p.cd, 0.9) / size);
+  const splash = num(p.venom) + num(p.boom) * (boss ? 0.3 : 0.8) + num(p.thorns) * 0.3;
+  const ultimate = 1 + Math.min(10, num(p.ultimate?.level)) * 0.025;
+  const classBonus = (p.cls === 14 ? 1.25 : p.cls === 9 || p.cls === 15 ? 1.2 : 1.1) * ultimate;
+  return Math.min(1000000, Math.max(1, damage * critical * shots / interval * classBonus + splash));
+}
+
+export function partyPower(players, boss = false) {
+  return Math.max(1, (players || []).reduce((total, p) => total + playerPower(p, boss), 0));
+}
+
+export function scaledEnemyHp(def, wave, players, companions = 1) {
+  const power = partyPower(players, !!def.boss);
+  const w = Math.max(1, wave);
+  if (def.boss) {
+    const seconds = def.final ? 95 : 24 + actOf(w) * 3.5;
+    const group = companions > 1 ? 0.72 : 1;
+    const floor = def.hp * (1 + w * 0.035) * Math.pow(1.003, w - 1);
+    return Math.ceil(Math.max(floor, power * seconds * group));
+  }
+  const floor = def.hp * enemyHpMul(w);
+  // Sublinear scaling preserves the reward from a strong build on the horde.
+  const adaptive = Math.pow(power, 0.82) * (0.5 + Math.min(1.6, w / 130)) * Math.sqrt(def.hp / 3);
+  return Math.ceil(Math.max(floor, adaptive));
+}
+
 /** Ato (0-9) de uma onda. A onda 290 ainda é o ato 9, não o 10. */
 export function actOf(wave) {
   return clamp(Math.floor((Math.max(1, wave) - 1) / ACT_LEN), 0, ACTS - 1);
@@ -72,13 +111,17 @@ export function eliteChance(wave) {
 
 /** Quantos inimigos a onda tem. */
 export function waveQuota(wave) {
-  return Math.min(6 + wave * 2, 26 + actOf(wave) * 2);
+  return Math.min(MAX_ENEMIES, 6 + Math.floor(wave * 1.05) + actOf(wave) * 6);
 }
 
 /** Intervalo entre nascimentos. Encurta bem mais que antes — sem isso uma run
     de 290 ondas passaria a maior parte do tempo esperando inimigo nascer. */
 export function spawnInterval(wave) {
-  return Math.max(0.22, 1.3 - wave * 0.035);
+  return Math.max(0.16, 1.3 - wave * 0.025);
+}
+
+export function spawnBatch(wave) {
+  return 1 + Math.min(7, Math.floor(Math.max(0, wave - 18) / 28));
 }
 
 /** Fragmentos e almas por onda limpa. */
@@ -132,6 +175,7 @@ export function bossCount(wave) {
   if (!kind) return 0;
   if (wave >= FINAL_WAVE) return 1; // o Devorador de Mundos vem sozinho
   const a = actOf(wave);
-  if (kind === "act") return a >= 6 ? 2 : 1;
-  return a >= 8 ? 2 : 1;
+  if (kind === "act") return a >= 6 ? 3 : a >= 3 ? 2 : 1;
+  if (waveInAct(wave) === 20) return a >= 4 ? 3 : a >= 1 ? 2 : 1;
+  return a >= 6 ? 3 : a >= 3 ? 2 : 1;
 }

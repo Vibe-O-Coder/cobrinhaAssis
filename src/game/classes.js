@@ -8,7 +8,7 @@
 
    Índices (CLASSES em data/classes.js):
      6 Berserker · 7 Centauro · 8 Criomante · 9 Hidra · 10 Cascavel
-     11 Espectral · 12 Glutão · 13 Engenheiro · 14 Tempestade · 15 Cronomante */
+     11 Apostador · 12 Glutão · 13 Engenheiro · 14 Tempestade · 15 Cronomante */
 
 import { CELL, TAU, W, H } from "../core/config.js";
 import { S } from "../core/state.js";
@@ -16,16 +16,18 @@ import { rnd, dist, clamp, pick } from "../core/utils.js";
 import { EDEF, isBoss } from "../data/enemies.js";
 import { sfx } from "../core/audio.js";
 import {
-  addParts, addText, shockwave, ring, aura, shadow, beam, quake, drain,
+  addParts, addText, shockwave, ring, aura, beam, quake, drain,
 } from "../render/fx.js";
 import { headPx, heal, nearestEnemy } from "./player.js";
 import {
-  cleanupEnemies, slowEnemy, stunEnemy, curseEnemy,
+  cleanupEnemies, slowEnemy, stunEnemy,
 } from "./enemies.js";
 import { isPvp, pvpAimTarget } from "./pvp.js";
 function classTarget(p,h,r) { return (isPvp() && pvpAimTarget({...p,range:r},h)) || nearestEnemy(h.x,h.y,r); }
 
 import { bulletDmg } from "./stats.js";
+import { tickUltimate } from './ultimates.js';
+import { useGamble } from './gambler.js';
 
 /* ---------------------------------------------------------------------------
    Ajudantes
@@ -69,6 +71,9 @@ function cellPx(p, i) {
    --------------------------------------------------------------------------- */
 
 export function initClass(p) {
+  p.ultimate = null;
+  p.ultimateBursts = [];
+  p.ultimateTurrets = [];
   switch (p.cls) {
     case 6: // Berserker
       p.berserkT = 0;
@@ -101,12 +106,12 @@ export function initClass(p) {
    --------------------------------------------------------------------------- */
 
 export function classTick(p, dt) {
+  tickUltimate(p, dt);
   switch (p.cls) {
     case 6: return tickBerserker(p, dt);
     case 7: return tickCentauro(p, dt);
     case 9: return tickHidra(p, dt);
     case 10: return tickCascavel(p, dt);
-    case 11: return tickEspectral(p, dt);
     case 12: return tickGlutao(p, dt);
     case 13: return tickEngenheiro(p, dt);
     case 15: return tickCronomante(p, dt);
@@ -242,32 +247,6 @@ function tickCascavel(p, dt) {
     }
   }
   if (Math.random() < dt * 3) addParts(t.x, t.y, "#e67e22", 1);
-}
-
-/* 👻 ESPECTRAL — quem toca o corpo fica amaldiçoado e recebe o dobro de dano.
-   O corpo deixa de ser estorvo e vira arma: você passa a QUERER que o inimigo
-   encoste em você, o que é o oposto do resto do jogo. */
-function tickEspectral(p, dt) {
-  const passo = Math.max(1, Math.floor(p.cells.length / 14));
-  for (const e of S.enemies) {
-    if (e.hp <= 0) continue;
-    for (let i = 1; i < p.cells.length; i += passo) {
-      const q = cellPx(p, i);
-      if (dist(q.x, q.y, e.x, e.y) < e.r + 14) {
-        curseEnemy(e, 4);
-        if (Math.random() < dt * 5) addParts(e.x, e.y, "#a29bfe", 2);
-        break;
-      }
-    }
-  }
-  if (p.phaseT > 0) {
-    p.phaseT -= dt;
-    p.iframes = Math.max(p.iframes, 0.15);
-    const Hh = headPx(p);
-    if (Math.random() < dt * 20) {
-      shadow(Hh.x, Hh.y, CELL * 0.8, "rgba(162,155,254,0.4)");
-    }
-  }
 }
 
 /* 🍖 GLUTÃO — força vem do tamanho, e o tamanho derrete.
@@ -413,7 +392,7 @@ export function classAbility(p) {
       ring(Hh.x, Hh.y, 300, "#ffe9a8", 6);
       for (const e of S.enemies) {
         if (e.hp <= 0 || dist(Hh.x, Hh.y, e.x, e.y) > 300) continue;
-        hurt(e, bulletDmg(p) * (isBoss(e.type) ? 3 : 4), p);
+        hurt(e, bulletDmg(p) * (isBoss(e.type) ? 5 : 7), p);
       }
       S.shake = 12;
       cleanupEnemies();
@@ -430,7 +409,7 @@ export function classAbility(p) {
         if (e.hp <= 0 || dist(Hh.x, Hh.y, e.x, e.y) > R) continue;
         stunEnemy(e, 3);
         slowEnemy(e, 6, 0.6);
-        hurt(e, bulletDmg(p) * 1.5, p);
+        hurt(e, bulletDmg(p) * 4, p);
         addParts(e.x, e.y, "#a8f0ff", 6);
       }
       S.flash = 0.2;
@@ -448,7 +427,7 @@ export function classAbility(p) {
       for (const idx of [0, ...p.heads]) {
         const q = cellPx(p, idx);
         for (let i = 0; i < 5; i++) {
-          shot(p, q.x, q.y, (i / 5) * TAU + rnd(0, 0.4), 430, 0.8, {
+          shot(p, q.x, q.y, (i / 5) * TAU + rnd(0, 0.4), 430, 1.4, {
             color: "#2ecc71", life: 1.2,
           });
         }
@@ -468,7 +447,7 @@ export function classAbility(p) {
       for (const e of S.enemies) {
         if (e.hp <= 0 || dist(t.x, t.y, e.x, e.y) > R) continue;
         stunEnemy(e, 3 + (p.xStun || 0)); // 📢 Eco do Chocalho
-        hurt(e, bulletDmg(p), p);
+        hurt(e, bulletDmg(p) * 3.5, p);
         n++;
       }
       addText(t.x, t.y - 30, "CHOCALHO — " + n + " parados", "#e67e22", 1.2, 15);
@@ -477,19 +456,9 @@ export function classAbility(p) {
       break;
     }
 
-    /* 👻 Fase Ectoplasmática */
+    /* 🎲 Dado do Destino — dez possibilidades uniformes, risco real. */
     case 11: {
-      p.phaseT = 3;
-      p.iframes = Math.max(p.iframes, 3);
-      aura(Hh.x, Hh.y, 130, "#a29bfe");
-      addParts(Hh.x, Hh.y, "#a29bfe", 30, 3);
-      addText(Hh.x, Hh.y - 30, "ETÉREO", "#a29bfe", 1.2, 15);
-      // amaldiçoa tudo por perto de uma vez
-      for (const e of S.enemies) {
-        if (e.hp <= 0 || dist(Hh.x, Hh.y, e.x, e.y) > 220) continue;
-        curseEnemy(e, 6);
-        drain(e.x, e.y, Hh.x, Hh.y, "#a29bfe");
-      }
+      useGamble(p);
       break;
     }
 
@@ -502,7 +471,7 @@ export function classAbility(p) {
       ring(Hh.x, Hh.y, R, "#e84393", 6);
       for (const e of S.enemies) {
         if (e.hp <= 0 || dist(Hh.x, Hh.y, e.x, e.y) > R) continue;
-        hurt(e, bulletDmg(p) * 2.5 * glutaoMul(p), p);
+        hurt(e, bulletDmg(p) * 4 * glutaoMul(p), p);
         drain(e.x, e.y, Hh.x, Hh.y, "#e84393");
       }
       addText(Hh.x, Hh.y - 30, "BANQUETE", "#e84393", 1.3, 16);
@@ -523,7 +492,7 @@ export function classAbility(p) {
       const alvos = S.enemies.filter((e) => e.hp > 0).slice(0, 14);
       for (const e of alvos) {
         beam(e.x, e.y - 400, Math.PI / 2, 400, 6, 0.2, "#74b9ff");
-        hurt(e, bulletDmg(p) * 2.2, p);
+        hurt(e, bulletDmg(p) * 3.8, p);
         addParts(e.x, e.y, "#74b9ff", 10, 2);
         chainLightning(p, e, bulletDmg(p) * 1.2);
       }
@@ -553,8 +522,10 @@ export function classAbility(p) {
         if (e.hp <= 0 || dist(N.x, N.y, e.x, e.y) > 260) continue;
         stunEnemy(e, 1.2);
         slowEnemy(e, 4, 0.5);
+        hurt(e, bulletDmg(p) * 3, p);
       }
       S.flash = 0.3;
+      cleanupEnemies();
       break;
     }
   }

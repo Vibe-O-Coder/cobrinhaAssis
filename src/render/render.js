@@ -5,7 +5,7 @@
 
 import { ctx, drawBackground, drawWorldBounds } from "./canvas.js";
 import { W, H, TAU, CELL } from "../core/config.js";
-import { CANVAS, VP, panes, setPane, isSplit, SPLIT_GAP } from "./viewport.js";
+import { CANVAS, VP, panes, setPane, isSplit, SPLIT_GAP, arenaZoom } from "./viewport.js";
 import { S } from "../core/state.js";
 import { rnd, clamp, dist } from "../core/utils.js";
 import { embers } from "./fx.js";
@@ -15,6 +15,7 @@ import {
 } from "./entities.js";
 import { viewRect, inView } from "./camera.js";
 import { pvpBounds } from "../game/pvp.js";
+import { drawMinimap } from "./minimap.js";
 
 export function renderConnecting() {
   ctx.clearRect(0, 0, CANVAS.w, CANVAS.h);
@@ -39,8 +40,7 @@ export function renderConnecting() {
 export function render(v, dt) {
   const ps = panes();
   if (ps.length === 1) {
-    setPane(ps[0]);
-    drawPane(v, dt);
+    drawScaledPane(v, dt, ps[0]);
     return;
   }
 
@@ -52,10 +52,22 @@ export function render(v, dt) {
     ctx.beginPath();
     ctx.rect(0, 0, p.w, p.h);
     ctx.clip();
-    drawPane(v, dt);
+    drawScaledPane(v, dt, p);
     ctx.restore();
   }
   drawSplitFrame(v, ps);
+}
+
+function drawScaledPane(v, dt, p) {
+  const zoom = arenaZoom(p, v.finalArena);
+  setPane({ ...p, w: p.w/zoom, h: p.h/zoom });
+  ctx.save();
+  ctx.scale(zoom, zoom);
+  drawPane(v, dt);
+  ctx.restore();
+  setPane(p);
+  drawBossBar(v);
+  drawMinimap(v, {w:p.w/zoom,h:p.h/zoom});
 }
 
 /* Faixa entre as duas metades + a etiqueta de quem é cada lado. Sem isso, dois
@@ -109,8 +121,9 @@ function drawPane(v, dt) {
   }
   ctx.globalAlpha = 1;
 
-  drawWorldBounds();
+  if (!v.finalArena) drawWorldBounds();
   drawArena();
+  drawBossHazards(v.bossHazards || []);
 
   for (const b of v.blocks) {
     if (inView((b.x + 0.5) * CELL, (b.y + 0.5) * CELL, CELL, vr)) drawBlock(b);
@@ -182,8 +195,7 @@ function drawPane(v, dt) {
   /* Torres do Engenheiro: desenhadas ANTES da cobra, para a cobra passar por
      cima delas em vez de sumir atrás. */
   for (const p of v.players) {
-    if (!p.turrets) continue;
-    for (const t of p.turrets) {
+    for (const t of [...(p.turrets || []), ...(p.ultimateTurrets || [])]) {
       if (inView(t.x, t.y, 20, vr)) drawTurret(t, p.color || "#95a5a6");
     }
   }
@@ -234,7 +246,6 @@ function drawPane(v, dt) {
 
   /* ---- a partir daqui é espaço de TELA ---- */
 
-  drawBossBar(v);
   drawOffscreenArrows(v);
 
   if (v.mod) {
@@ -269,6 +280,33 @@ function drawPane(v, dt) {
     ctx.fillRect(0, 0, 8, VP.h);
     ctx.fillRect(VP.w - 8, 0, 8, VP.h);
   }
+}
+
+function drawBossHazards(hazards) {
+  ctx.save();
+  for (const h of hazards) {
+    const warning = h.delay > 0;
+    const pulse = warning ? 0.2 + 0.15 * Math.sin(S.gameT*14) : 0.46;
+    ctx.fillStyle = h.c || "#ff527f";
+    ctx.strokeStyle = h.c || "#ff527f";
+    ctx.globalAlpha = pulse;
+    ctx.lineWidth = warning ? 2 : 4;
+    ctx.setLineDash(warning ? [10,7] : []);
+    ctx.beginPath();
+    if (h.shape === "line") {
+      ctx.moveTo(h.x,h.y);ctx.lineTo(h.x2,h.y2);
+      ctx.lineWidth = h.width || 20;ctx.stroke();
+      ctx.globalAlpha = warning ? 0.85 : 1;ctx.lineWidth = warning ? 2 : 4;ctx.stroke();
+    } else if (h.shape === "ring") {
+      ctx.arc(h.x,h.y,h.r,0,TAU);
+      ctx.arc(h.x,h.y,h.inner || 0,0,TAU,true);
+      ctx.fill("evenodd");ctx.globalAlpha = warning ? .7 : .9;ctx.stroke();
+    } else {
+      ctx.arc(h.x,h.y,h.r || 50,0,TAU);ctx.fill();
+      ctx.globalAlpha = warning ? .7 : .9;ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 /* Paredes da arena de morte súbita.

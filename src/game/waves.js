@@ -2,10 +2,10 @@
 /* BOSS_EVERY / VARIANT_EVERY / BOSS_TIER_EVERY / ELITE_BOSS_EVERY saíram:
    a cadência de chefe e o tier de variante agora vêm de core/scaling.js,
    que sabe em que ATO a onda está. */
-import { COLS, ROWS, W, H, FINAL_WAVE } from "../core/config.js";
+import { COLS, ROWS, CELL, W, H, FINAL_WAVE } from "../core/config.js";
 import {
   enemyHpMul, bossHpMul, enemySpdMul, eliteChance, waveQuota, actOf,
-  waveInAct, maxTier, tierChance, bossKind, bossCount,
+  waveInAct, maxTier, tierChance, bossKind, bossCount, scaledEnemyHp, MAX_ENEMIES,
 } from "../core/scaling.js";
 import { S } from "../core/state.js";
 import { save } from "../core/save.js";
@@ -70,6 +70,7 @@ export function pickType(w) {
 }
 
 export function spawnEnemy(type) {
+  if (S.enemies.length >= MAX_ENEMIES) return null;
   const d = EDEF[type];
   if (!d) {
     // Rede de segurança: nunca mais derruba o update() por um tipo inexistente.
@@ -90,13 +91,25 @@ export function spawnEnemy(type) {
     S.players.some((p) => !p.dead && dist(x, y, headPx(p).x, headPx(p).y) < 220)
   );
 
-  /* As três fórmulas soltas que existiam aqui foram para core/scaling.js.
-     Elas estavam calibradas para uma run de 50 ondas: a vida era linear
-     (47x na onda 290, contra um jogador que cresce multiplicativamente) e a
-     velocidade travava na onda 42. */
+  // Encounters arrive near the action instead of crossing an empty world.
+  const alive = S.players.filter(p => !p.dead);
+  if (alive.length) {
+    const h = headPx(pick(alive));
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const angle = rnd(0, Math.PI * 2), radius = rnd(520, 730);
+      x = Math.max(35, Math.min(W - 35, h.x + Math.cos(angle) * radius));
+      y = Math.max(35, Math.min(H - 35, h.y + Math.sin(angle) * radius));
+      if (alive.every(p => dist(x, y, headPx(p).x, headPx(p).y) >= 320)) break;
+    }
+  }
   const boss = !!d.boss;
-  let hp = boss ? d.hp * bossHpMul(S.wave) : d.hp * enemyHpMul(S.wave);
+  let hp = scaledEnemyHp(d, S.wave, S.players, bossCount(S.wave));
   let spd = d.spd * enemySpdMul(S.wave);
+  if (d.final && S.finalArena) {
+    x = S.finalArena.x + S.finalArena.w / 2;
+    y = S.finalArena.y + 105;
+    spd = 0;
+  }
 
   if (S.waveMod) {
     if (S.waveMod.id === "fast") spd *= 1.25;
@@ -130,7 +143,7 @@ export function spawnEnemy(type) {
   }
   if (affixes.includes("shielded")) hp *= 1.1;
 
-  S.enemies.push({
+  const enemy = {
     id: S.eid++,
     type,
     x, y,
@@ -152,7 +165,16 @@ export function spawnEnemy(type) {
     ward: 0,
     tier,
     affixes,
-  });
+    ...(boss ? {
+      bossGates: d.final ? [0.66, 0.33] : [MODE().enrageAt],
+      bossPhase: 0,
+      bossSlot: S.enemies.filter(e => isBoss(e.type)).length,
+      bossColor: d.c,
+      anchored: !!d.final,
+    } : {}),
+  };
+  S.enemies.push(enemy);
+  return enemy;
 }
 
 /* Quais chefes nascem nesta onda.
@@ -161,7 +183,7 @@ export function spawnEnemy(type) {
    o chefe daquela era (o clímax), e as ondas 10 e 20 têm um mini-chefe tirado do
    elenco do ato. Antes eram 58 lutas sorteadas de um balde de 6, com o mesmo
    chefe reaparecendo 7 ou 8 vezes na mesma run. */
-function chooseBosses(n) {
+export function chooseBosses(n) {
   if (n >= FINAL_WAVE) return ["boss_final"];
 
   const a = actOf(n);
@@ -171,15 +193,16 @@ function chooseBosses(n) {
 
   if (kind === "act") {
     const out = [def.actBoss];
-    if (count > 1) {
-      const extra = def.mini.filter((b) => b !== def.actBoss);
-      if (extra.length) out.push(pick(extra));
-    }
+    // A new act boss arrives with veterans introduced in previous acts.
+    const veterans = ACT_DEFS.slice(0, a).map(d => d.actBoss).filter(b => b !== "boss_final");
+    while (out.length < count) out.push(veterans[(n + out.length) % veterans.length] || def.mini[0]);
     return out;
   }
 
-  const pool = def.mini.length ? def.mini : BOSS_POOL;
-  return sample(pool, Math.min(count, pool.length));
+  const pool = a > 0 ? ACT_DEFS.slice(0, a).map(d => d.actBoss) : ["boss"];
+  // Wave 20 repeats a familiar boss in a duo/trio; wave 10 mixes veterans.
+  if (waveInAct(n) === 20) return Array(count).fill(pool[(a + 1) % pool.length]);
+  return Array.from({ length: count }, (_, i) => pool[(a + i) % pool.length]);
 }
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -187,6 +210,8 @@ const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
 export function startWave(n) {
   S.wave = n;
   S.phase = "play";
+  S.bossHazards = [];
+  S.finalArena = n >= FINAL_WAVE ? { x: 840, y: 1050, w: 1120, h: 700 } : null;
   setActPalette(actOf(n)); // o mundo troca de era junto com o ato
   S.waveMod = n >= 3 ? (Math.random() < 0.3 ? MODS[0] : pick(MODS)) : MODS[0];
 
@@ -197,7 +222,21 @@ export function startWave(n) {
     p.shield = Math.max(p.shield, p.shieldBase);
   }
 
-  for (let i = 0; i < Math.min(3 + Math.floor(n / 2), 8); i++) addBlock();
+  if (S.finalArena) {
+    S.blocks = [];
+    S.foods = [];
+    S.bombs = [];
+    S.pbullets = [];
+    S.drops = [];
+    S.ebullets = [];
+    S.enemies = [];
+    S.players.forEach((p, idx) => {
+      const cx = 46 + idx * 8, cy = 54;
+      p.cells = p.cells.map((_, i) => [cx - i, cy]);
+      p.dir = { x: 1, y: 0 }; p.qdir = null;
+      p.iframes = Math.max(p.iframes || 0, 2);
+    });
+  } else for (let i = 0; i < Math.min(3 + Math.floor(n / 2), 8); i++) addBlock();
 
   /* Entrada de ato: a onda 1 de cada ato anuncia a era. É o único banner que
      dura mais, porque é quando a paleta do mundo muda. */
@@ -227,7 +266,7 @@ export function startWave(n) {
     banner(
       (final ? "☠️ " : "⚠️ ") + names.join(" · ") + (final ? " ☠️" : " ⚠️"),
       final
-        ? "o chefe final — é agora ou nunca."
+        ? "Arena sem paredes: atravesse uma borda e retorne pela outra. Três fases."
         : (names.length > 1
             ? names.length + " CHEFES AO MESMO TEMPO"
             : chefeDeAto
@@ -236,7 +275,7 @@ export function startWave(n) {
           " · " + actDef(actOf(n)).n + " · onda " + n,
     );
     sfx("boss");
-    q = S.bossLeft + Math.floor(n / 12);
+    q = final ? 1 : S.bossLeft + Math.floor(waveQuota(n) * 0.35);
   } else {
     S.bossQueue = [];
     S.bossLeft = 0;
@@ -247,7 +286,7 @@ export function startWave(n) {
     sfx("up");
   }
 
-  if (S.waveMod.id === "swarm") q = Math.min(44, Math.round(q * 1.6));
+  if (S.waveMod.id === "swarm" && !S.finalArena) q = Math.min(MAX_ENEMIES, Math.round(q * 1.6));
   S.spawnQ = q;
   S.spawnT = 1.2;
 }
@@ -257,6 +296,7 @@ export function startWave(n) {
    tentava compensar com um setTimeout solto fora do game loop, que podia
    despejar um chefe já na onda seguinte. */
 export function spawnStep() {
+  if (S.enemies.length >= MAX_ENEMIES) return false;
   if (S.bossLeft > 0 && S.bossQueue.length) {
     const type = S.bossQueue.shift();
     S.bossLeft--;
@@ -265,6 +305,7 @@ export function spawnStep() {
   } else {
     spawnEnemy(pickType(S.wave));
   }
+  return true;
 }
 
 export { isBoss, bossName };

@@ -133,11 +133,11 @@ export const CLASSES = [
     pass: "Passiva: +alcance e repulsão na cauda",
   },
   {
-    name: "Espectral", ic: "👻", color: "#a29bfe",
-    hp: 3, dmg: 1.0, cd: 0.7, spd: 120, abCd: 10,
-    ab: "Fase Ectoplasmática",
-    desc: "Recebe mais dano, mas quem toca seu corpo fica amaldiçoado.",
-    pass: "Passiva: corpo amaldiçoa (dobro de dano)",
+    name: "Apostador", ic: "🎲", color: "#f8c650",
+    hp: 4, dmg: 1.0, cd: 0.8, spd: 140, abCd: 18,
+    ab: "Dado do Destino",
+    desc: "Dado de 1 a 10: 1 deixa 1 HP (meio coração); 10 cura, explode e dá poderes. Quanto maior, melhor.",
+    pass: "Passiva: ganha 2 poderes aleatórios por escolha, incluindo os de classe. Não escolhe cartas.",
   },
   {
     name: "Glutão", ic: "🍖", color: "#e84393",

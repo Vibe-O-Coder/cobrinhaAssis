@@ -60,7 +60,7 @@
       </button>
 
       <div class="credit">
-        290 ondas em 10 atos · 16 classes · 49 poderes e relíquias ·
+        290 ondas em 10 atos · 16 classes · 3 caminhos de ultimate por classe ·
         100+ tipos de inimigo · 10 chefes · tem final 💜
       </div>
     </div>
@@ -68,13 +68,8 @@
     <!-- ================= ESCOLHA DE CLASSE ================= -->
     <div id="classSel" class="screen hidden">
       <h2 class="tit" id="csTitle">ESCOLHA SUA CLASSE</h2>
-      <div class="sub">16 classes, cada uma com habilidade e passiva únicas</div>
-
-      <!-- começar de um ato já vencido (checkpoint) -->
-      <div id="actPick" class="hidden">
-        <div class="sub" style="margin-top: 6px">começar do ato:</div>
-        <div id="actRow" class="row" style="gap: 6px; flex-wrap: wrap"></div>
-      </div>
+      <div class="sub">16 classes · 3 caminhos de ultimate · 10 evoluções em cada caminho</div>
+      <div class="hintbar">Toda campanha começa na onda 1. Construa seus poderes a cada onda.</div>
 
       <div class="grid" id="csGrid"></div>
       <button class="btn small" data-act="to-menu">← voltar</button>
@@ -83,36 +78,59 @@
     <!-- ================= MULTIPLAYER ================= -->
     <div id="online" class="screen hidden">
       <h2 class="tit">🌐 MULTIPLAYER ONLINE</h2>
-      <div class="sub">crie uma sala e passe o código, ou entre numa existente</div>
+      <div class="sub">encontre uma partida ou convide um amigo pelo código</div>
 
-      <div class="panel" style="max-width: 620px; text-align: center; margin-top: 10px">
-        <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+      <div class="panel online-panel">
+        <label class="chip auto-connection">
+          <input type="radio" name="netmode" id="nmAuto" value="auto" checked />
+          Conexão automática
+        </label>
+        <div id="phpBadge" class="hintbar" role="status">Preparando conexão…</div>
+        <details class="net-advanced">
+          <summary>Opções avançadas de conexão</summary>
+          <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+          <label class="chip"><input type="radio" name="netmode" id="nmRelay" value="relay" /> Servidor de partidas</label>
           <label class="chip">
-            <input type="radio" name="netmode" id="nmWebRTC" value="webrtc" checked />
-            ⚡ Conexão direta (WebRTC) — recomendado
+            <input type="radio" name="netmode" id="nmWebRTC" value="webrtc" />
+            Conexão direta (WebRTC)
           </label>
           <label class="chip">
             <input type="radio" name="netmode" id="nmPhp" value="php" />
-            🖥️ Servidor PHP (XAMPP/LAN)
+            Rede local (PHP)
           </label>
           <label class="chip">
             <input type="radio" name="netmode" id="nmInet" value="inet" />
-            🌐 Internet (MQTT)
+            Compatibilidade (MQTT)
           </label>
+          </div>
+        </details>
+        <section class="room-create">
+        <h3>Criar partida</h3>
+        <div class="room-fields">
+          <label>Nome da sala<input id="roomName" maxlength="40" placeholder="Partida com amigos" /></label>
+          <label>Modo<select id="onlineMode"><option value="online">Co-op</option><option value="pvp">PVP</option></select></label>
+          <label>Visibilidade<select id="roomVisibility"><option value="public">Pública — aparece na lista</option><option value="private">Privada — código e senha</option></select></label>
+          <label>Senha da sala privada<input id="roomPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="Crie uma senha ou gere abaixo" /></label>
         </div>
-
-        <div class="row"><label>Modo da sala: <select id="onlineMode"><option value="online">Co-op</option><option value="pvp">PVP</option></select></label></div>
-        <div id="phpBadge" class="hintbar">🔎 testando relay.php...</div>
-
+        <button class="btn small" data-act="generate-password">🎲 Gerar senha</button>
         <button class="btn gold" data-act="create-room">🏰 CRIAR SALA</button>
-        <div style="margin: 10px 0; color: #8f7fc0">— ou —</div>
-
+        </section>
+        <section class="room-join">
+        <h3>Entrar pelo código</h3>
+        <div class="room-fields">
+          <label>Código<input class="code" id="joinCode" maxlength="12" placeholder="R-ABC234" autocapitalize="characters" autocomplete="off" spellcheck="false" /></label>
+          <label>Senha, se privada<input id="joinPassword" type="password" maxlength="64" autocomplete="off" placeholder="Senha enviada pelo host" /></label>
+        </div>
         <div class="row">
-          <input class="code" id="joinCode" maxlength="5" placeholder="CÓDIGO" />
           <button class="btn small" data-act="join-room">🔑 Entrar</button>
         </div>
-
-        <div id="onlineStatus" class="netstatus">
+        </section>
+        <section class="room-browser">
+          <div class="room-list-heading"><h3>Partidas públicas</h3><button class="btn small" data-act="refresh-rooms">↻ Atualizar</button></div>
+          <div id="roomListStatus" class="hintbar" role="status">Buscando partidas…</div>
+          <div id="roomList" aria-label="Partidas públicas"></div>
+        </section>
+        <div id="onlineStatus" class="netstatus" role="status" aria-live="polite">
           escolha criar ou entrar numa sala
         </div>
 
@@ -128,6 +146,8 @@
       <h2 class="tit">🏰 SALA DE GRUPO</h2>
       <div class="sub" id="lobbyMode"></div>
       <div class="sub" id="lobbyRole">você é o HOST</div>
+      <div class="hintbar" id="lobbyPrivacy"></div>
+      <div class="lobby-password" id="lobbyPassword"></div>
 
       <div class="sub">passe este código para o outro jogador:</div>
       <div class="lobbycode" id="lobbyCode">-----</div>
@@ -184,12 +204,20 @@
       <div class="panel howbox">
         <p>
           🎯 Sobreviva às ondas. A cada onda limpa você escolhe
-          <b>1 poder entre 3</b>. A cada 5 ondas vem um <b>CHEFE</b> e uma
-          <b>relíquia</b>. São <b>290 ondas</b> — 10 atos de 29, um por ano
+          <b>1 poder entre 3</b>. Chefes surgem em ondas marcadas de cada ato,
+          com encontros duplos e triplos conforme a campanha avança. São <b>290 ondas</b> — 10 atos de 29, um por ano
           desde que a cobrinha original saiu. Na <b>onda 290</b> espera o
           <b>Devorador de Mundos</b>: derrote-o e o jogo tem fim (com almas em
           dobro).
         </p>
+        <p>🎲 <b>Apostador:</b> recebe o dobro de poderes, sempre aleatórios,
+          incluindo poderes da sua classe. A ativa lança um dado de 1 a 10:
+          1 deixa apenas 1 HP (meio coração); números altos concedem recompensas melhores.</p>
+        <p>✨ <b>Ultimates:</b> cada classe tem três caminhos, com dez evoluções em cada um.
+          A primeira evolução fixa o caminho da partida. Cartas de classe têm borda turquesa;
+          evoluções de ultimate têm borda dourada dupla. Veja a evolução em <b>Poderes</b>.</p>
+        <p>🧭 <b>Minimapa:</b> mostra jogadores, alimentos, horda e chefes, inclusive fora da câmera.
+          No confronto final, o vazio é contínuo: atravessar uma borda leva à outra.</p>
         <p>
           🕹️ <span class="kbd">WASD</span>/<span class="kbd">setas</span> mover ·
           <span class="kbd">E</span> habilidade ·
@@ -216,10 +244,10 @@
           manter o jogo justo.
         </p>
         <p>
-          🌐 <b>Online:</b> ⚡ WebRTC é o mais rápido (conexão direta entre os
-          dois navegadores). 🖥️ PHP funciona sem internet, só com o XAMPP na
-          rede local. 🌐 MQTT funciona em qualquer lugar, com mais lag. O ping
-          aparece no HUD.
+          🌐 <b>Online:</b> deixe a conexão automática ligada. Se necessário,
+          o jogo aguarda o servidor acordar. Escolha uma partida pública ou
+          use o código; salas privadas também exigem a senha do host.
+          A conexão é escolhida pelo código da sala. O ping aparece no HUD.
         </p>
         <p>⚖️ Toda cura tem um pequeno intervalo — imortalidade não existe 😉</p>
       </div>
@@ -283,12 +311,6 @@
         <div id="banner">
           <div id="bannerT"></div>
           <div id="bannerS"></div>
-        </div>
-
-        <!-- barra de vida do chefe: o NOME dele aparece aqui -->
-        <div id="bossBar" class="hidden">
-          <div id="bossName"></div>
-          <div id="bossTrack"><div id="bossFill"></div></div>
         </div>
 
         <div id="pvpChoices" aria-live="polite"></div>

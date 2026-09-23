@@ -23,7 +23,7 @@ const BROKERS = [
   "wss://mqtt.eclipseprojects.io:443/mqtt",
 ];
 
-export const T = { PHP: "php", MQTT: "mqtt", WEBRTC: "webrtc" };
+export const T = { AUTO: "auto", RELAY: "relay", PHP: "php", MQTT: "mqtt", WEBRTC: "webrtc" };
 
 /** Hash estável do código da sala — os dois lados precisam chegar ao mesmo número. */
 function hashCode(s) {
@@ -33,6 +33,8 @@ function hashCode(s) {
 }
 
 export const LABELS = {
+  [T.AUTO]: "Automático",
+  [T.RELAY]: "🌐 Servidor de partidas",
   [T.PHP]: "🖥️ PHP",
   [T.MQTT]: "🌐 MQTT",
   [T.WEBRTC]: "⚡ WebRTC",
@@ -80,8 +82,9 @@ export async function ensureMqtt() {
     arquivo .php é servido como texto puro e um teste de status 200 daria
     falso-positivo, prendendo o jogo num transporte que não funciona. */
 export async function detectPhp() {
+  const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 2500);
   try {
-    const r = await fetch("backend/relay.php?ping=1", { cache: "no-store" });
+    const r = await fetch("backend/relay.php?ping=1", { cache: "no-store", signal: abort.signal });
     if (!r.ok) return false;
     const t = await r.text();
     // O PHP executado devolve exatamente PHPRELAY_OK. Servido como texto, o
@@ -89,7 +92,7 @@ export async function detectPhp() {
     return t.trim() === "PHPRELAY_OK";
   } catch (e) {
     return false;
-  }
+  } finally { clearTimeout(timer); }
 }
 
 /* ---------- relay PHP (leituras curtas e fila limitada) ---------- */
@@ -367,7 +370,7 @@ export function WebRTCTransport(code, isHost, onRaw, onStatus, onErr, onUp) {
         return;
       }
       if (type === "network" || type === "server-error" || type === "socket-error") {
-        onErr("Sem acesso ao PeerServer configurado. Abra https://" + PEER_SERVER.host + PEER_SERVER.path + " para acordar o Render, aguarde o JSON e recrie a sala.");
+        onErr("Não foi possível usar WebRTC. Crie uma sala no modo Automático para usar o servidor de partidas, inclusive entre redes diferentes.");
         return;
       }
       onErr("WebRTC: " + (type || "erro desconhecido"));

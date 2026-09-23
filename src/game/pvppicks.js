@@ -5,10 +5,17 @@ import { PVP_UPGRADES } from '../data/pvpupgrades.js';
 import { canOffer } from '../data/upgrades.js';
 import { grantPower } from './player.js';
 import { sfx } from '../core/audio.js';
+import { grantRandomPowers } from './gambler.js';
+import { toast } from '../ui/screens.js';
 
 export function beginPvpChoice(pi) {
   const p = S.players[pi], st = S.pvp;
   if (!st || st.over || !p || p.dead) return;
+  if (p.cls === 11) {
+    const awarded = grantRandomPowers(p, PVP_UPGRADES, 2);
+    toast('🎲 J' + (pi + 1) + ': ' + awarded.map(o => o.n).join(' + '));
+    return;
+  }
   st.pending[pi]++;
   offerNext(pi);
 }
@@ -20,12 +27,15 @@ function offerNext(pi) {
   const normal = eligible.filter(({o})=>!o.overflow);
   const pool = normal.length >= 3 ? normal : eligible;
   st.pending[pi]--;
-  st.choices[pi] = { id: ++st.pickId, opts: sample(pool.map(({k})=>k), 3), level: p.level };
+  const ultimate = pool.filter(({o}) => o.ultimate);
+  const opts = !p.ultimate && ultimate.length ? sample(ultimate.map(({k})=>k),3) : sample(pool.map(({k})=>k),3);
+  if (p.ultimate && ultimate.length && !opts.some(k => PVP_UPGRADES[k].ultimate)) opts[0] = ultimate[0].k;
+  st.choices[pi] = { id: ++st.pickId, opts, level: p.level };
   renderPvpChoices();
 }
 export function choosePvpPower(pi, id, k) {
   const st = S.pvp, choice = st?.choices[pi], p = S.players[pi];
-  if (!st || st.over || !p || p.dead || !choice || choice.id !== id || !choice.opts.includes(k)) return false;
+  if (!st || st.over || !p || p.dead || p.cls === 11 || !choice || choice.id !== id || !choice.opts.includes(k)) return false;
   const power = PVP_UPGRADES[k];
   if (!power || !canOffer(power,p)) return false;
   grantPower(p,power);
@@ -59,8 +69,8 @@ export function renderPvpChoices() {
     choice.opts.forEach((k,index)=>{
       const o = PVP_UPGRADES[k];
       const button = document.createElement('button');
-      button.className = 'pvp-card';
-      button.innerHTML = `<kbd>${keys[index]}</kbd><span><b>${o.ic} ${esc(o.n)}</b><small>${esc(o.d)}</small></span>`;
+      button.className = 'pvp-card' + (o.cls !== undefined ? ' class-card' : '') + (o.ultimate ? ' ultimate-card' : '');
+      button.innerHTML = `<kbd>${keys[index]}</kbd><span>${o.cls !== undefined ? '<span class="class-badge">' + (o.ultimate ? 'ULTIMATE · CAMINHO ' + (o.branch + 1) : 'CLASSE') + '</span>' : ''}<b>${o.ic} ${esc(o.n)}</b><small>${esc(o.d)}</small></span>`;
       button.onclick = ()=>selectPvpOption(pi,index);
       panel.appendChild(button);
     });
