@@ -1,0 +1,9 @@
+{
+  "name": "cobrinha-peer-server",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": { "start": "node server.js", "test": "node --test tests/*.test.mjs" },
+  "dependencies": { "express": "4.22.3", "peer": "1.0.2", "ws": "8.21.3" }
+}
