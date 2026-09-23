@@ -1,6 +1,9 @@
 /* ================= INIMIGOS: IA, MORTE E EXPLOSÕES ================= */
 import { W, H, TAU, CELL } from "../core/config.js";
 import { S } from "../core/state.js";
+import { SpatialGrid } from '../core/spatial.js';
+import { runEcology } from './ecology.js';
+import { inflict } from './statuses.js';
 import { rnd, dist, clamp } from "../core/utils.js";
 import { EDEF, isBoss, AFFIXES } from "../data/enemies.js";
 import { MODE } from "../data/modes.js";
@@ -105,6 +108,7 @@ export function onEnemyHitPlayer(e, p) {
   if (!e || !p || p.dead) return;
   if (has(e, "noregen")) blockRegen(p, isBoss(e.type) ? 14 : 4);
   if (has(e, "weaken")) weaken(p, 6);
+  inflict(p,e.effect);
 }
 
 /* ---------------- ciclo de vida ----------------
@@ -394,7 +398,7 @@ export function updateEnemies(dt) {
         const Ph = headPx(p);
         if (dist(e.x, e.y, Ph.x, Ph.y) < e.r + 14) {
           const hpAntes = p.hp;
-          hitPlayer(p);
+          hitPlayer(p,e.contactMul||1);
           // só aplica o debuff se o golpe passou (escudo e i-frames barram)
           if (p.hp < hpAntes) onEnemyHitPlayer(e, p);
           if (p.thorns > 0 && !p.dead) {
@@ -412,20 +416,26 @@ export function updateEnemies(dt) {
 
   separate();
   cleanupEnemies();
-  S.bossHazards = S.enemies.flatMap(e => (e.hazards || []).map(({ pulse, ...h }) => h));
+  S.bossHazards.length = 0;
+  for(const e of S.enemies)if(e.hazards)for(const h of e.hazards)S.bossHazards.push(h);
+  S.hazardCount=S.bossHazards.length;
 }
 
 /** Empurra inimigos sobrepostos. */
+const separationGrid=new SpatialGrid(), neighbors=[];
 function separate() {
+  separationGrid.rebuild(S.enemies);
   const n = S.enemies.length;
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = S.enemies[i];
-      const b = S.enemies[j];
+    const a=S.enemies[i];
+    for (const b of separationGrid.query(a.x-a.r-4,a.y-a.r-4,a.x+a.r+4,a.y+a.r+4,neighbors)) {
+      if(b.id<=a.id)continue;
       if (!a || !b) continue;
       if (a.anchored || b.anchored) continue;
-      const d = dist(a.x, a.y, b.x, b.y);
       const m = a.r + b.r - 4;
+      const dx=a.x-b.x,dy=a.y-b.y;
+      if(dx*dx+dy*dy>=m*m)continue;
+      const d = Math.hypot(dx,dy);
       if (d < m && d > 0) {
         const f = (m - d) * 0.5;
         const nx = (a.x - b.x) / d;
@@ -441,6 +451,7 @@ function separate() {
 
 /** Devolve true se o inimigo ainda deve perseguir o alvo neste frame. */
 function runPattern(e, def, pattern, dt, tgt, Hh, Hv) {
+  if(pattern==='ecology')return runEcology(e,def,dt,tgt,Hh,Hv,newMinion);
   shooting = e;
   e.shT -= dt;
   const rage = S.waveMod && S.waveMod.id === "rage";

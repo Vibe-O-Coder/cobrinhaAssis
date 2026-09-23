@@ -1352,3 +1352,21 @@ body.pvp-active .reader { inset: 5% 8%; background: #100b1ff0; }
 .local-touch .tbtn.ab { width:56px; height:56px; font-size:26px; }
 .local-touch .tbtn.item { width:44px; height:44px; font-size:22px; }
 .local-touch #tBtns2 { width:65px; align-items:flex-end; }
+/* Laboratório: painel rolável independente da arena e dos controles de toque. */
+#sandboxButton { align-self:flex-start; margin:6px 0; }
+#sandboxPanel { position:fixed;z-index:110;right:16px;top:16px;bottom:16px;width:min(440px,calc(100vw - 32px));box-sizing:border-box;overflow-y:auto;background:#171027;border:1px solid #76609b;border-radius:18px;padding:20px;color:#eee5ff;box-shadow:0 20px 70px #000b;text-align:left; }
+.sandbox-head {display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-20px;background:#171027;padding:12px 0;z-index:2;}
+.sandbox-head h2 {margin:0;color:#f6d580;font-size:22px;}
+.sandbox-note,#sandboxPanel small,#sandboxPanel p {color:#c2b3d9;font-size:13px;line-height:1.5;}
+#sandboxPanel fieldset {border:1px solid #513c70;border-radius:12px;padding:14px;margin:18px 0;min-width:0;}
+#sandboxPanel legend {color:#f6d580;padding:0 6px;font-weight:bold;}
+#sandboxPanel label {display:flex;flex-direction:column;gap:6px;font-size:14px;margin:10px 0;min-width:0;}
+#sandboxPanel input,#sandboxPanel select {box-sizing:border-box;width:100%;min-width:0;padding:10px;background:#100a1d;border:1px solid #71558f;color:#f3ebff;border-radius:8px;font:inherit;}
+#sandboxPanel .sandbox-check {flex-direction:row;align-items:center;}
+#sandboxPanel input[type=checkbox] {width:auto;}
+#sandboxPanel button {margin:6px 0;white-space:normal;}
+.sandbox-grid {display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+.sandbox-preview {display:flex;gap:10px;align-items:center;}
+.sandbox-preview img {width:76px;height:76px;flex-shrink:0;}
+#sandboxPanel a {display:block;color:#ccb2fa;margin-top:14px;}
+.status-chip {display:inline-block;background:#392642;color:#ffc0db;border:1px solid #d277a4;border-radius:4px;padding:1px 4px;margin:2px;font-size:10px;}

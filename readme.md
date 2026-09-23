@@ -75,7 +75,7 @@ legados continuam nas opções avançadas.
 
 | Conexão | Funcionamento |
 |---|---|
-| **Automático / servidor de partidas** | Lista de salas, códigos exclusivos e senha. Transmite os dados pelo Render, sem exigir conexão direta entre os dispositivos. |
+| **Automático / servidor de partidas** | Lista de salas, códigos exclusivos e senha. Começa pelo Render, tenta conexão direta e volta ao servidor se necessário. |
 | **WebRTC (avançado)** | Negocia conexão entre navegadores; redes restritivas podem exigir TURN. |
 | **PHP / XAMPP** | Relay na rede local, sem necessidade de internet. Os dois computadores precisam abrir o mesmo endereço do servidor, por exemplo o IP LAN de quem hospeda. |
 | **MQTT** | Relay público pela internet. Alternativa quando a conexão direta não funciona; a distância até o broker influencia o ping. |
@@ -189,14 +189,22 @@ Em produção esse objeto não existe.
   (três filhos por nó; bloqueios apenas nas especializações sinalizadas)
 - Poderes e relíquias com pré-requisitos e limites. Cartas de classe têm borda
   própria; ultimates têm borda dourada dupla e exibem caminho e evolução.
-- Hordas de até **200 inimigos**, novos morteiros, sentinelas e perseguidores,
-  variantes por tier e afixos. A frequência e os lotes de nascimento aumentam;
+- **75 espécies**, divididas em 25 iniciais, 25 intermediárias e 25 avançadas.
+  Todas têm patentes veterana e elite, com padrões melhorados, além de variações
+  de velocidade, resistência e efeitos. Hordas de até **200 inimigos**;
   a vida considera a onda e o poder ofensivo da equipe.
-- **10 chefes** com padrões próprios, ataques anunciados e fases protegidas contra
+- **25 chefes** com padrões próprios, ataques anunciados e fases protegidas contra
   morte instantânea. Chefes conhecidos voltam em duplas e trios, inclusive em
   grupos mistos, com proteção e ataques coordenados por proximidade.
 - **Minimapa** na campanha e no PVP, incluindo alvos fora da câmera no multiplayer.
 - **Modos difícil e impossível**, **AFK** e **2x velocidade**
+- **Sandbox / Laboratório:** escolha classe, nível, atributos, poderes e ultimate;
+  crie criaturas de qualquer patente ou jogue qualquer onda, incluindo a 290.
+  Sem alterar recompensas e recordes da campanha. Tecla **B** abre o painel.
+- **100 artes SVG** de criaturas e chefes, com [bestiário pesquisável](assets/bestiary.html).
+- Conexão automática tenta **WebRTC direto** dentro da sala autenticada e volta
+  ao relay se necessário. Estados compactos, colisões por proximidade, sprites
+  e brilhos em cache reduzem o trabalho durante as hordas.
 - **Devorador de Mundos** gigante e fixo no alto de uma arena sem paredes fatais:
   sair por uma borda leva à oposta. Tem três fases, lasers, corredores seguros e
   ataques próprios; vencê-lo na onda 290 encerra a campanha.
@@ -222,13 +230,19 @@ npm run test:rooms
 npm run test:browser
 npm run test:network
 npm run test:expansion
+npm run test:lab
+npm run test:direct
+npm run test:perf
 ```
 
 Os testes usam Edge em segundo plano e perfis isolados, sem alterar o save do seu
 navegador. Os testes de rede usam PHP e o relay local; a expansão também cobre
 as 48 especializações em campanha/PVP, bosses, salas e telas de celular. Resultados
-e capturas ficam em `tests/artifacts`. A validação desta atualização está em
-[docs/ATUALIZACAO_SALAS_E_COMBATE.md](docs/ATUALIZACAO_SALAS_E_COMBATE.md).
+e capturas ficam em `tests/artifacts`. A validação e as limitações das medições estão
+em [docs/OTIMIZACAO_E_SANDBOX.md](docs/OTIMIZACAO_E_SANDBOX.md).
+Use `npm run build:bestiary` para regenerar as artes e o catálogo a partir dos dados.
+O [planejamento de cutscenes](docs/PLANO_CUTSCENES.md) é somente uma proposta; cenas
+cinemáticas ainda não foram implementadas.
 
 ## Licença
 

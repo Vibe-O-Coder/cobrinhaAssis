@@ -1,3 +1,4 @@
+import { toggleSandbox } from "./sandbox.js";
 /* ================= TECLADO E DIREÇÃO =================
 
    Dois problemas de foco na versão anterior:
@@ -119,6 +120,9 @@ export function installInput() {
     }
 
     if ($("#game").classList.contains("hidden")) return;
+
+    if (k === "b" && S.sandbox) { toggleSandbox(); return; }
+    if (!$("#sandboxPanel").classList.contains("hidden")) return;
 
     if (k === "p") {
       togglePowers();

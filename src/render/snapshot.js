@@ -63,6 +63,7 @@ export function snap() {
       ...Object.fromEntries(["level","xp","xpNext","guard","guardMax","guardRate","guardT","pvpIf","pvpIfBonus","pvpDmg","pvpRes","dodge","itemT","itemCdMul","kills","pvpKills","spd","mt","grow","dmg","dmgMul","dmgFlat","cd","cdBase","shots","pierce","range","crit","critDmg","venom","boom","boomR","ls","thorns","magnetR","abName","name","inputAck","iframeBonus","shieldBase","soulMult","regenMax","sizeMul","pvpSlowT","berserkT"].map(k=>[k,p[k]])),
       item: p.item, powers:p.powers, powerLog:p.powerLog,
       ultimate: p.ultimate, lastGamble: p.lastGamble,
+      silenceT:p.silenceT,disarmT:p.disarmT,staggerT:p.staggerT,frostT:p.frostT,poisonT:p.poisonT,burnT:p.burnT,
       idx: p.idx,
       cls: p.cls,
       color: p.color,
@@ -96,6 +97,7 @@ export function snap() {
       elite: e.elite ? 1 : 0,
       enraged: e.enraged ? 1 : 0,
       tier: e.tier || 0,
+      rank:e.rank,
       ward: e.ward || 0,
       // afixos e estados: o convidado precisa deles para desenhar os anéis
       affixes: e.affixes && e.affixes.length ? e.affixes : undefined,

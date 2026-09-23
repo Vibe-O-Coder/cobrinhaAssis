@@ -13,6 +13,10 @@
     "test:browser": "node scripts/browser-tests.mjs",
     "test:network": "node scripts/network-tests.mjs",
     "test:expansion": "node scripts/expansion-tests.mjs",
+    "test:lab": "node scripts/laboratory-tests.mjs",
+    "test:direct": "node scripts/direct-tests.mjs",
+    "test:perf": "node scripts/perf-tests.mjs",
+    "build:bestiary": "node scripts/build-bestiary.mjs",
     "test:rooms": "node --test peer-server/tests/*.test.mjs"
   },
   "dependencies": {

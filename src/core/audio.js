@@ -28,11 +28,16 @@ const PRESETS = {
   win: [523, 1568, 0.9, "triangle", 0.12],
 };
 
+const lastSound = new Map();
+let voices = 0;
 export function sfx(type) {
   if (muted || !AC) return;
   const P = PRESETS[type];
   if (!P) return;
   const t = AC.currentTime;
+  const gap = type === 'shoot' ? .045 : type === 'kill' ? .06 : .025;
+  if(voices>=24 || t-(lastSound.get(type)??-1)<gap)return;
+  lastSound.set(type,t);voices++;
   const o = AC.createOscillator();
   const g = AC.createGain();
   o.connect(g);
@@ -44,6 +49,7 @@ export function sfx(type) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + P[2]);
   o.start(t);
   o.stop(t + P[2] + 0.03);
+  o.onended=()=>{voices--;o.disconnect();g.disconnect();};
 }
 
 export function isMuted() {

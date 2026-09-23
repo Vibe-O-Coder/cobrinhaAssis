@@ -6,6 +6,7 @@ import { S } from "../core/state.js";
 import { clamp, dist, shade } from "../core/utils.js";
 import { EDEF, bossName, isBoss, AFFIXES } from "../data/enemies.js";
 import { artFor } from "./artmap.js";
+import { drawSprite } from './sprites.js';
 import { safeColor } from "./hud.js";
 import { vHeart, vSoul, vSkull, vShieldIc, vStar, drawApple } from "./art.js";
 
@@ -95,7 +96,7 @@ export function drawEnemy(e) {
     }
   }
 
-  artFor(d, e.type)(e.r, e);
+  if(!drawSprite(d,e))artFor(d, e.type)(e.r, e);
 
   if (e.flash > 0) {
     ctx.globalAlpha = 0.5;
@@ -483,7 +484,7 @@ export function drawBossBar(v) {
     ctx.textBaseline = "middle";
     ctx.fillStyle = en ? "#ff5d7f" : "#ffd75e";
     ctx.fillText(
-      bossName(b.type) + (en ? " · FASE " + ((b.bossPhase || 1) + 1) : ""),
+      bossName(b.type) + (b.rank===2?' · ELITE':b.rank===1?' · VETERANO':'') + (en ? " · FASE " + ((b.bossPhase || 1) + 1) : ""),
       VP.w / 2,
       y + 24,
       w,

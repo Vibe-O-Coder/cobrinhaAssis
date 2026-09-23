@@ -23,7 +23,7 @@ import {
   cleanupEnemies, slowEnemy, stunEnemy,
 } from "./enemies.js";
 import { isPvp, pvpAimTarget } from "./pvp.js";
-function classTarget(p,h,r) { return (isPvp() && pvpAimTarget({...p,range:r},h)) || nearestEnemy(h.x,h.y,r); }
+function classTarget(p,h,r) { if(p.disarmT>0||p.staggerT>0)return null; return (isPvp() && pvpAimTarget({...p,range:r},h)) || nearestEnemy(h.x,h.y,r); }
 
 import { bulletDmg } from "./stats.js";
 import { tickUltimate } from './ultimates.js';

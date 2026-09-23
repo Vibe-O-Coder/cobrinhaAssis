@@ -14,6 +14,7 @@ import { centerCameraOnPlayers } from "../render/camera.js";
 import { startPvp, isPvp } from "./pvp.js";
 import { fitCanvas } from "../render/canvas.js";
 import { syncTouchLayout } from "../ui/touch.js";
+import { openSandbox } from '../ui/sandbox.js';
 
 function assignColors() {
   if (save.color === "" || save.color === null || save.color === undefined) {
@@ -59,7 +60,7 @@ export function startRun(clsList, m, waveInicial) {
   document.body.classList.toggle("pvp-active",m === "pvp");
   S.lastMode = S.role !== "solo" ? "online" : m;
   resetRun();
-  setMode(m === "pvp" ? "normal" : save.mode);
+  setMode(m === "pvp" || m === 'sandbox' ? "normal" : save.mode);
   S.players = clsList.map((c, i) => makePlayer(c, i));
   assignColors();
   S.gameT = 0;
@@ -67,7 +68,7 @@ export function startRun(clsList, m, waveInicial) {
   S.runActive = true;
   S.rerolls = m === "pvp" ? 0 : save.upg.rrl || 0;
   S.banishes = m === "pvp" ? 0 : save.upg.ban || 0;
-  if (m !== "pvp" && S.role !== "guest") {
+  if (m !== "pvp" && m !== 'sandbox' && S.role !== "guest") {
     if (save.supplies.reroll > 0) { S.rerolls += 2; save.supplies.reroll--; }
     if (save.supplies.banish > 0) { S.banishes++; save.supplies.banish--; }
     if (save.supplies.blessing > 0) save.supplies.blessing--;
@@ -86,6 +87,9 @@ export function startRun(clsList, m, waveInicial) {
   fitCanvas();
   centerCameraOnPlayers(true);
   syncTouchLayout();
+  $('#sandboxButton').classList.toggle('hidden',m!=='sandbox');
+  $('#sandboxPanel').classList.add('hidden');
+  if(m==='sandbox'){S.wave=1;S.phase='play';setHint();openSandbox();return;}
 
   /* PVP não tem onda: startWave() zeraria o spawn por cota e anunciaria "ONDA
      1". O relógio da partida (game/pvp.js) é quem manda daqui para a frente. */
@@ -110,6 +114,7 @@ export function startRun(clsList, m, waveInicial) {
    voltava pro menu. Resultado: sair da run sem morrer jogava no lixo as almas,
    os fragmentos e o recorde da run inteira. Agora as duas saidas passam aqui. */
 function cashOut() {
+  if(S.sandbox)return 0;
   /* O modo difícil e o impossível pagam mais almas: sem isso ninguém teria
      motivo para jogar neles além de orgulho. */
   const mult =
@@ -142,8 +147,9 @@ export function abandonRun() {
     toast("🏳️ Duelo abandonado");
     return 0;
   }
+  if(S.sandbox){S.stopNet&&S.stopNet();toast('Laboratório encerrado');return 0;}
   const earned = cashOut();
-  if (S.role !== "guest") submitScore();
+  if (S.role !== "guest" && !S.sandbox) submitScore();
   S.stopNet && S.stopNet();
   toast(
     "\u{1F3F3}️ Abandonou na onda " + S.wave + " · \u{1F49C} +" + earned +
@@ -153,6 +159,7 @@ export function abandonRun() {
 }
 
 export function gameOver() {
+  if(S.sandbox){S.paused=true;openSandbox();return;}
   if (!S.runActive) return; // não contabiliza duas vezes
   S.phase = "over";
   S.runActive = false;

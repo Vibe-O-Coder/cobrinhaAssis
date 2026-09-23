@@ -56,7 +56,7 @@ export function update(dt) {
   /* "Matou todo mundo? Onda limpa." não vale no PVP: lá o mapa fica vazio o
      tempo todo entre um nascimento e outro, e isso dispararia a tela de
      escolha de carta a cada dois segundos. */
-  if (!isPvp() && S.phase === "play" && S.spawnQ === 0 && S.enemies.length === 0) {
+  if (!isPvp() && (!S.sandbox||S.sandbox.waveActive) && S.phase === "play" && S.spawnQ === 0 && S.enemies.length === 0) {
     waveClear();
   }
 }
@@ -82,7 +82,7 @@ export function frame(t) {
      colisão dentro dele. Então em vez de um passo grande, damos DOIS passos
      normais — a física continua com a mesma resolução e só o relógio acelera. */
   if (S.role !== "guest" && S.phase === "play" && !S.paused) {
-    const passos = !isPvp() && save.fast ? 2 : 1;
+    const passos = !isPvp() && !S.sandbox && save.fast ? 2 : 1;
     const substeps = Math.max(1,Math.ceil(dt * 60));
     for (let i=0;i<passos*substeps && S.runActive && S.phase === "play";i++) update(dt/substeps);
   }

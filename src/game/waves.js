@@ -2,6 +2,7 @@
 /* BOSS_EVERY / VARIANT_EVERY / BOSS_TIER_EVERY / ELITE_BOSS_EVERY saíram:
    a cadência de chefe e o tier de variante agora vêm de core/scaling.js,
    que sabe em que ATO a onda está. */
+import { ecologyPool, SPECIES_BY_ID, rankAvailable, MUTATIONS, BOSS_ROSTER } from "../data/ecology.js";
 import { COLS, ROWS, CELL, W, H, FINAL_WAVE } from "../core/config.js";
 import {
   enemyHpMul, bossHpMul, enemySpdMul, eliteChance, waveQuota, actOf,
@@ -32,44 +33,13 @@ import { setActPalette } from "../render/canvas.js";
 
    Antes esta lista era fixa e acabava na onda 16: da 17 à 290 o sorteio era
    sempre o mesmo balde de 13 tipos. */
-function poolForWave(w) {
-  const a = actOf(w);
-  if (a === 0) {
-    const pool = ["grunter"];
-    if (w >= 2) pool.push("runner", "runner");
-    if (w >= 3) pool.push("shooter");
-    if (w >= 4) pool.push("runner", "splitter");
-    if (w >= 6) pool.push("charger", "orbiter");
-    if (w >= 9) pool.push("splitter");
-    if (w >= 14) pool.push("shooter", "charger");
-    return pool;
-  }
-  const pool = poolUpToAct(a);
-  // os tipos do ato atual saem com peso dobrado: é a novidade da era
-  pool.push(...actDef(a).pool);
-  return pool.length ? pool : ["grunter"];
-}
-
-/* A versão anterior declarava `const pool` e depois fazia `pool = pool.filter(...)`.
-   Isso é TypeError: Assignment to constant variable — e a partir da wave 13 o
-   pickType falhava em ~193 de cada 200 chamadas, então praticamente nenhum
-   inimigo conseguia nascer. Também sorteava tipos como "splitter_veteran" que
-   nunca existiram no EDEF. Agora a variante é derivada de variantOf(). */
 export function pickType(w) {
-  const pool = poolForWave(w);
-  const base = pick(pool);
-  if (!BASE_TYPES.includes(base)) return base;
-
-  /* Tier: teto pela onda, e dentro da faixa vai migrando do tier-1 para o teto.
-     Antes `Math.min(tier, 2)` grampeava tudo no abissal, então da onda 20 até a
-     290 o inimigo mais forte possível era o mesmo. */
-  const top = maxTier(w);
-  if (top <= 0) return base;
-  const t = Math.random() < tierChance(w) ? top : Math.max(0, top - 1);
-  return variantOf(base, t);
+ const base=pick(ecologyPool(w)), rank=rankAvailable(SPECIES_BY_ID[base].stage,w);
+ const actual=rank && Math.random()<.75 ? rank : Math.max(0,rank-1);
+ return base+['','_veteran','_elite'][actual];
 }
 
-export function spawnEnemy(type) {
+export function spawnEnemy(type, options = {}) {
   if (S.enemies.length >= MAX_ENEMIES) return null;
   const d = EDEF[type];
   if (!d) {
@@ -103,8 +73,13 @@ export function spawnEnemy(type) {
     }
   }
   const boss = !!d.boss;
+  const rank = options.rank ?? (boss && !d.final ? rankAvailable(d.stage||0,S.wave) : d.rank||0);
+  const mutation = options.mutation || (!boss && S.wave>20 && Math.random()<.22 ? pick(Object.keys(MUTATIONS).slice(1)) : "normal");
+  const variant=MUTATIONS[mutation]||MUTATIONS.normal;
   let hp = scaledEnemyHp(d, S.wave, S.players, bossCount(S.wave));
-  let spd = d.spd * enemySpdMul(S.wave);
+  let spd = d.spd * enemySpdMul(S.wave) * variant.speed;
+  hp *= variant.hp;
+  if(boss){hp *= [1,1.6,2.2][rank];spd *= 1+rank*.06;}
   if (d.final && S.finalArena) {
     x = S.finalArena.x + S.finalArena.w / 2;
     y = S.finalArena.y + 105;
@@ -119,19 +94,14 @@ export function spawnEnemy(type) {
 
   /* Só inimigo comum pode virar "elite". Antes boss5/boss6/boss_elite caíam
      no else-if genérico e podiam ganhar x3 de vida em cima da escala de onda. */
-  let elite = false;
-  if (!boss && Math.random() < eliteChance(S.wave)) {
-    elite = true;
-    hp *= 2.4;
-    spd *= 1.1;
-  }
+  const elite = rank === 2;
 
   spd *= MODE().enemySpd;
 
   /* AFIXOS — ver o comentário grande em data/enemies.js.
      `brand` é o afixo assinatura do tipo (Sanguessuga sempre cancela cura).
      Tiers 3+ ganham sorteados por cima, e o modo difícil/impossível soma mais. */
-  const tier = tierOf(type);
+  const tier = boss ? rank : tierOf(type);
   const affixes = [];
   if (d.brand) affixes.push(d.brand);
   if (!boss) {
@@ -160,7 +130,7 @@ export function spawnEnemy(type) {
     dot: 0,
     dotT: 0,
     lastHitBy: null,
-    elite,
+    elite, rank, mutation, effect: variant.effect || d.element, contactMul: variant.damage * (1+rank*.15),
     enraged: false,
     ward: 0,
     tier,
@@ -184,25 +154,13 @@ export function spawnEnemy(type) {
    elenco do ato. Antes eram 58 lutas sorteadas de um balde de 6, com o mesmo
    chefe reaparecendo 7 ou 8 vezes na mesma run. */
 export function chooseBosses(n) {
-  if (n >= FINAL_WAVE) return ["boss_final"];
-
-  const a = actOf(n);
-  const def = actDef(a);
-  const kind = bossKind(n);
-  const count = bossCount(n);
-
-  if (kind === "act") {
-    const out = [def.actBoss];
-    // A new act boss arrives with veterans introduced in previous acts.
-    const veterans = ACT_DEFS.slice(0, a).map(d => d.actBoss).filter(b => b !== "boss_final");
-    while (out.length < count) out.push(veterans[(n + out.length) % veterans.length] || def.mini[0]);
-    return out;
-  }
-
-  const pool = a > 0 ? ACT_DEFS.slice(0, a).map(d => d.actBoss) : ["boss"];
-  // Wave 20 repeats a familiar boss in a duo/trio; wave 10 mixes veterans.
-  if (waveInAct(n) === 20) return Array(count).fill(pool[(a + 1) % pool.length]);
-  return Array.from({ length: count }, (_, i) => pool[(a + i) % pool.length]);
+ if(n>=FINAL_WAVE)return ['boss_final'];
+ const count=bossCount(n);if(!count)return [];
+ const known=BOSS_ROSTER.filter(b=>b.unlock<=n&&b.id!=='boss_final');
+ const debut=known.find(b=>b.unlock===n);
+ const out=[(debut||known[(Math.floor(n/10))%known.length]||BOSS_ROSTER[0]).id];
+ while(out.length<count)out.push(known[(n+out.length*3)%known.length]?.id||out[0]);
+ return out;
 }
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -211,6 +169,7 @@ export function startWave(n) {
   S.wave = n;
   S.phase = "play";
   S.bossHazards = [];
+  S.hazardCount = 0;
   S.finalArena = n >= FINAL_WAVE ? { x: 840, y: 1050, w: 1120, h: 700 } : null;
   setActPalette(actOf(n)); // o mundo troca de era junto com o ato
   S.waveMod = n >= 3 ? (Math.random() < 0.3 ? MODS[0] : pick(MODS)) : MODS[0];
@@ -218,7 +177,7 @@ export function startWave(n) {
   for (const p of S.players) {
     if (p.dead) respawn(p);
     if (p.relicCrown) p.hp = Math.min(p.maxHp, p.hp + 2);
-    if (save.upg.cur) p.hp = Math.min(p.maxHp, p.hp + save.upg.cur);
+    if (!S.sandbox && save.upg.cur) p.hp = Math.min(p.maxHp, p.hp + save.upg.cur);
     p.shield = Math.max(p.shield, p.shieldBase);
   }
 

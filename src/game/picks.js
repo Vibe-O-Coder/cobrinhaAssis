@@ -18,6 +18,7 @@ import { gameOver } from "./run.js";
 import { grantRandomPowers } from './gambler.js';
 
 export function waveClear() {
+  if(S.sandbox){S.sandbox.waveActive=false;S.victory=false;S.paused=true;toast('Onda de teste concluída. Abra o laboratório com B.');return;}
   // O chefe final morreu: a run acaba em vitória, não em mais uma onda.
   if (S.victory) {
     gameOver();

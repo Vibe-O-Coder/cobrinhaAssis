@@ -1,6 +1,6 @@
 # Atualizar o multiplayer no Render e no Netlify
 
-O jogo continua no Netlify. O Render passa a hospedar o **servidor de salas e partidas**, com transmissão por WebSocket. A conexão automática usa esse servidor, inclusive entre redes diferentes, sem precisar negociar uma conexão direta entre os dispositivos. WebRTC, PHP/LAN e MQTT continuam nas opções avançadas.
+O jogo continua no Netlify. O Render hospeda o **servidor de salas e partidas**, com transmissão por WebSocket. A conexão automática entra pela sala autenticada e tenta estabelecer **WebRTC direto** entre os jogadores. Se a rede impedir essa conexão, ou ela falhar, a partida usa o servidor. WebRTC legado, PHP/LAN e MQTT continuam nas opções avançadas.
 
 **É necessário publicar as duas partes desta atualização.** Atualizar só o Netlify não adiciona a lista de salas ao servidor antigo. Os arquivos estão preparados localmente; a publicação nas contas de hospedagem não foi realizada nesta revisão.
 
@@ -8,7 +8,7 @@ O jogo continua no Netlify. O Render passa a hospedar o **servidor de salas e pa
 
 Use o serviço de `cobrinhaassis.onrender.com`, se ele ainda estiver na sua conta. Não é necessário criar outro serviço apenas por causa da atualização.
 
-1. No repositório conectado ao Render, substitua os arquivos do servidor pelos desta pasta `peer-server`: `server.js`, `package.json` e `package-lock.json`. Não envie `node_modules`.
+1. No repositório conectado ao Render, substitua os arquivos do servidor pelos desta pasta `peer-server`: `server.js`, `package.json` e `package-lock.json`. Não envie `node_modules`, `.npm-cache` ou `tests`; o Render instala as dependências. O novo `server.js` é necessário para negociar a rota direta dentro das salas.
 2. Confira a configuração:
 
 | Campo | Valor |
@@ -21,14 +21,14 @@ Use o serviço de `cobrinhaassis.onrender.com`, se ele ainda estiver na sua cont
 | Health Check Path | `/health` |
 
 3. Publique a nova versão e aguarde o estado Live. O pacote pede Node 22; o Render fornece a variável `PORT` e o HTTPS.
-4. Abra [a verificação do servidor](https://cobrinhaassis.onrender.com/health). A resposta deve conter `"service":"cobrinha-relay"` e `"version":2`. A raiz do domínio também mostra essas informações. O endereço do Render não é a página do jogo.
+4. Abra [a verificação do servidor](https://cobrinhaassis.onrender.com/health). A resposta deve conter `"service":"cobrinha-relay"`, `"version":2` e **`"directUpgrade":true`**. A raiz do domínio também mostra essas informações. Se `directUpgrade` estiver ausente, ainda está rodando o servidor anterior. O endereço do Render não é a página do jogo.
 
 O servidor aceita conexões de outras origens por padrão. Se você já definiu `ALLOWED_ORIGINS` no painel, inclua a URL exata do seu Netlify e dos outros endereços usados para jogar, separados por vírgulas. Uma origem ausente nessa lista será bloqueada.
 
 ## 2. Atualize o jogo no Netlify
 
 1. Confira `src/net/peer-config.js`. O domínio atual é `cobrinhaassis.onrender.com`. Se o Render forneceu outro, altere apenas `host`, sem `https://` e sem caminho. Mantenha porta 443 e `secure: true`.
-2. Republique os arquivos atualizados do jogo, incluindo `index.html`, `style.css` e toda a pasta `src`. Preserve `netlify.toml` e `netlify/functions` para o ranking.
+2. Republique os arquivos atualizados do jogo, incluindo `index.html`, `style.css`, toda a pasta `src` e **toda a pasta `assets`**, que contém as 100 artes e o bestiário. Preserve `netlify.toml` e `netlify/functions` para o ranking. Cache, dependências locais, scripts de teste e capturas não são necessários no site.
 3. Recarregue a página nos dois dispositivos para ambos usarem a mesma versão.
 
 O modo **Automático** já vem selecionado. Ao abrir a lista ou criar/entrar em uma sala, o jogo tenta iniciar o servidor e mostra o progresso por até cerca de 90 segundos. Não é necessário abrir `/peerjs` manualmente para acordá-lo. Se a versão antiga estiver publicada, o jogo informa que o servidor precisa da atualização.
@@ -48,8 +48,11 @@ As opções avançadas são úteis para configurações específicas. PHP exige 
 2. No celular, abra o mesmo site usando dados móveis e entre pela lista ou pelo código.
 3. Teste movimento, habilidades e escolha de poderes no Co-op; repita no PVP.
 4. Crie uma sala privada: ela não deve aparecer na lista, uma senha errada deve ser recusada e a senha correta deve permitir entrar.
+5. Confira a indicação da rota: **Conexão direta** quando WebRTC funcionar, ou **Servidor de partidas** quando o relay for necessário. Observe o ping durante movimento, horda e boss. Distância física pequena entre jogadores não garante a mesma rota de internet.
 
 Os testes locais validaram dois navegadores isolados, salas públicas/privadas, senha, sincronização e reconexão. **Isso não substitui este teste com aparelhos e redes físicas diferentes após publicar.** Não foi possível confirmar a disponibilidade do serviço público nesta revisão.
+
+Com os dois jogadores no Brasil e o servidor em Oregon, o ping mostrado pelo jogo é a ida e volta **entre os jogadores**. Pelo relay, tanto a ida como a resposta passam pelo servidor; por isso ele pode superar o ping medido em outro jogo até um servidor americano. A rota direta evita esse desvio quando as redes permitem. Não existe garantia de 170 ms, nem de que 500 ms seja causado somente pela região. Veja as [regiões do Render](https://render.com/docs/regions) e os [detalhes da atualização](docs/OTIMIZACAO_E_SANDBOX.md).
 
 ## 5. Limites e diagnóstico
 

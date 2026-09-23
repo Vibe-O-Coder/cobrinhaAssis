@@ -9,6 +9,7 @@ fs.mkdirSync('tests/artifacts',{recursive:true});
 async function pair(transport,mode){
  const hc=await browser.newContext(),gc=await browser.newContext(),h=await hc.newPage(),g=await gc.newPage();
  for(const p of [h,g]){p.on('pageerror',e=>errors.push(e.stack));await p.addInitScript(url=>window.COBRINHA_RELAY_URL=url,process.env.RELAY_TEST_URL||'http://127.0.0.1:9000');await p.goto(base);await p.waitForFunction(()=>window.SRK?.startRun);await p.locator('[data-act="open-online"]').click();await p.locator('.net-advanced summary').click();await p.locator(transport).check();}
+ if(transport==='#nmRelay')for(const p of [h,g])await p.evaluate(()=>window.RTCPeerConnection=undefined); // Exercise fallback independently of direct-tests.
  await h.locator('#onlineMode').selectOption(mode);await h.locator('[data-act="create-room"]').click();await h.waitForSelector('#lobby:not(.hidden)');const code=await h.locator('#lobbyCode').textContent();
  await g.locator('#joinCode').fill(code);await g.locator('[data-act="join-room"]').click();
  try {await g.locator('#lobbyGrid .card').nth(7).click({timeout:25000});}catch(e){console.log('HOST STATUS',await h.locator('#lobbyStatus2').textContent());console.log('GUEST STATUS',await g.locator('#onlineStatus').textContent());throw e;}

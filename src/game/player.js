@@ -1,3 +1,4 @@
+import { tickStatuses } from "./statuses.js";
 /* ================= JOGADOR ================= */
 import { COLS, ROWS, CELL, W, H, CRIT_DMG_BASE } from "../core/config.js";
 import { enemyTouchDmg } from "../core/scaling.js";
@@ -44,7 +45,7 @@ export function headVel(p) {
 
 export function makePlayer(cls, idx) {
   const c = CLASSES[cls] || CLASSES[0];
-  const upg = S.mode === "pvp" ? Object.fromEntries(Object.keys(save.upg).map(k => [k, 0])) : save.upg;
+  const upg = S.mode === "pvp" || S.mode === 'sandbox' ? Object.fromEntries(Object.keys(save.upg).map(k => [k, 0])) : save.upg;
   const p = {
     idx,
     cls,
@@ -142,7 +143,7 @@ export function makePlayer(cls, idx) {
     treeB: emptyTreeB(),
   };
 
-  if (S.mode !== "pvp") { applyTree(p, save.tree); finalizeTree(p); }
+  if (S.mode !== "pvp" && S.mode !== 'sandbox') { applyTree(p, save.tree); finalizeTree(p); }
   // Cascavel troca vida por alcance; o resto do ajuste de classe é em initClass.
   if (cls === 10) p.range *= 1.35;
   initClass(p);
@@ -155,7 +156,7 @@ export function makePlayer(cls, idx) {
   /* Poderes iniciais da loja de almas. Agora respeitam pré-requisito e teto:
      antes um `pick(UPGRADES)` solto podia entregar "Veneno Concentrado" sem
      veneno, ou "Ímã de Comida" duas vezes. */
-  const startN = ((upg.ben || 0) + (upg.ini || 0) + (S.mode !== "pvp" && save.supplies.blessing > 0 ? 1 : 0)) * (cls === 11 ? 2 : 1);
+  const startN = ((upg.ben || 0) + (upg.ini || 0) + (S.mode !== "pvp" && !S.sandbox && save.supplies.blessing > 0 ? 1 : 0)) * (cls === 11 ? 2 : 1);
   for (let i = 0; i < startN; i++) {
     const pool = UPGRADES.filter((u) => canOffer(u, p));
     if (!pool.length) break;
@@ -296,6 +297,7 @@ export function hitPlayer(p, mul = 1) {
 }
 
 export function damagePlayer(p, n) {
+  if(S.sandbox?.invulnerable)return;
   if (isPvp()) { pvpHit(p,n,null,"environment"); return; }
   if (p.dead) return;
   if (p.shieldT > 0) return; // Égide do Paladino: imune de verdade
@@ -357,12 +359,15 @@ export function damagePlayer(p, n) {
 }
 
 export function updatePlayer(p, dt, fireShots) {
+  tickStatuses(p,dt);
+  if(p.dead)return;
   if (S.finalArena) {
-    p.cells = p.cells.map(([x,y]) => [wrapArenaX(x,S.finalArena),wrapArenaY(y,S.finalArena)]);
+    for(const cell of p.cells){cell[0]=wrapArenaX(cell[0],S.finalArena);cell[1]=wrapArenaY(cell[1],S.finalArena);}
   }
   p.iframes = Math.max(0, p.iframes - dt);
   p.shieldT = Math.max(0, p.shieldT - dt);
   p.abT = Math.max(0, p.abT - dt);
+  if(S.sandbox?.freeCooldown)p.abT=0;
   p.healT = Math.max(0, p.healT - dt);
   p.lsT = Math.max(0, (p.lsT || 0) - dt);
   p.noRegenT = Math.max(0, (p.noRegenT || 0) - dt);
@@ -373,15 +378,17 @@ export function updatePlayer(p, dt, fireShots) {
   p.sizeMul = glutaoMul(p);
   classTick(p, dt);
 
-  p.mt -= dt * 1000;
+  // Stun pauses movement; it must not accumulate steps to run on release.
+  if(p.staggerT>0)p.mt=Math.max(0,p.mt);
+  else p.mt -= dt * 1000;
   let guard = 0;
-  while (p.mt <= 0 && guard++ < 6) {
-    p.mt += p.spd * (p.pvpSlowT > 0 ? 1.25 : 1);
+  while (p.mt <= 0 && guard++ < 6 && !(p.staggerT>0)) {
+    p.mt += p.spd * (p.frostT>0?1.4:p.pvpSlowT > 0 ? 1.25 : 1);
     stepSnake(p);
   }
 
   p.at -= dt;
-  if (p.at <= 0) {
+  if (p.at <= 0 && !(p.disarmT>0) && !(p.staggerT>0)) {
     const Hh = headPx(p);
     /* No PVP o oponente tem prioridade: dentro do alcance, é nele que a cobra
        atira. Fora do PVP pvpAimTarget() devolve null e nada muda. */

@@ -19,6 +19,7 @@ import {
   T, LABELS, PhpTransport, MqttTransport, WebRTCTransport,
 } from "./transports.js";
 import { RelayTransport } from "./relay.js";
+import { packMessage, unpackMessage } from './codec.js';
 
 const PEER_TIMEOUT_MS = 15000;
 
@@ -43,7 +44,7 @@ export function createSession(isHost, code, cbs, kind, ticket) {
     if (!tr || !alive) return;
     o = {...(o || {}), from:myId, mid:++serial};
     try {
-      tr.send(o);
+      tr.send(packMessage(o));
     } catch (e) {}
   }
 
@@ -81,6 +82,7 @@ export function createSession(isHost, code, cbs, kind, ticket) {
   }
 
   function raw(d) {
+    d=unpackMessage(d);
     if (!alive || !d || d.from === myId) return;
 
     /* Só conta como "sinal de vida" o que vem do parceiro estabelecido.
@@ -166,7 +168,8 @@ export function createSession(isHost, code, cbs, kind, ticket) {
   const fatal = (m) => cbs.onFatal && cbs.onFatal(m);
 
   if (kind === T.RELAY) {
-    tr = RelayTransport(ticket, raw, status, fatal, peerUp, peerDown, cbs.onReady);
+    tr = RelayTransport(ticket, raw, status, fatal, peerUp, peerDown, cbs.onReady, isHost,
+      direct => cbs.onTransport?.(kind, direct ? '⚡ Conexão direta' : LABELS[kind]));
   } else if (kind === T.WEBRTC) {
     // Canal direto: quando o DataChannel abre, o parceiro está lá.
     tr = WebRTCTransport(code, isHost, raw, status, fatal, () => {

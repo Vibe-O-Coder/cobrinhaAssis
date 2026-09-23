@@ -2,6 +2,8 @@
  * Nenhum setTimeout, mira invisível ou golpe que muda de lugar após o aviso. */
 import { W, H, TAU } from "../core/config.js";
 import { S } from "../core/state.js";
+import { inflict } from './statuses.js';
+import { castCatalogBoss } from './boss-catalog.js';
 import { MAX_ENEMIES, MAX_ENEMY_BULLETS } from "../core/scaling.js";
 import { clamp, dist } from "../core/utils.js";
 import { headPx, hitPlayer, blockRegen, weaken } from "./player.js";
@@ -15,7 +17,7 @@ function shot(e, x, y, angle, speed, options = {}) {
   if (S.ebullets.length >= MAX_ENEMY_BULLETS) return;
   S.ebullets.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
     life: options.life ?? 7, r: options.r ?? 6, c: options.c || e.bossColor,
-    aff: e.affixes, turn: options.turn, trail: options.trail });
+    aff: e.affixes, turn: options.turn, trail: options.trail, effect:options.effect,damage:e.contactMul||1 });
 }
 
 function fan(e, origin, angle, count, spread, speed, options) {
@@ -25,12 +27,12 @@ function fan(e, origin, angle, count, spread, speed, options) {
 
 export function addEnemyHazard(e, data) {
   e.hazards ||= [];
-  if (e.hazards.length >= 48) return;
+  if (e.hazards.length >= 48 || (S.hazardCount||0)>=320) return;
+  S.hazardCount=(S.hazardCount||0)+1;
   const h = { id: ++hazardId, ownerId: e.id, c: e.bossColor,
     delay: 0.9, life: 0.45, pulse: 0, ...data };
   e.hazards.push(h);
-  if (h.shape === "line") aim(h.x, h.y, h.x2, h.y2, h.c, h.delay);
-  else bombWarning(h.x, h.y, h.r, h.delay, h.c);
+  // O render de hazards já mantém o aviso inteiro; não duplicar eventos visuais.
 }
 const hazard = addEnemyHazard;
 
@@ -65,8 +67,9 @@ export function tickBossHazards(e, dt) {
       const pos = headPx(p);
       if (!pointInBossHazard(h, pos.x, pos.y)) continue;
       const hp = p.hp;
-      hitPlayer(p);
+      hitPlayer(p,h.damage||1);
       if (p.hp >= hp) continue;
+      inflict(p,h.effect);
       if (e.affixes?.includes("noregen")) blockRegen(p, 14);
       if (e.affixes?.includes("weaken")) weaken(p, 8);
     }
@@ -133,7 +136,7 @@ function tickBurst(e, dt) {
   b.clock -= dt;
   if (b.clock > 0) return;
   b.clock = b.period;
-  const stage = e.bossPhase || 0;
+  const stage = Math.min(2,(e.bossPhase || 0)+(e.rank || 0));
   const n = b.n++;
   if (b.kind === "petals") {
     // Eight petals rotate between pulses, with wide sectors to move through.
@@ -173,7 +176,8 @@ function announce(e, name) {
 }
 
 function cast(e, head, newMinion) {
-  const stage = e.bossPhase || 0;
+  if(castCatalogBoss(e,head,newMinion,{hazard,shot,fan,summon}))return;
+  const stage = Math.min(2,(e.bossPhase || 0)+(e.rank || 0));
   const move = (e.bossMove || 0) % 3;
   e.bossMove = (e.bossMove || 0) + 1;
   const target = targetPoint(e, head);

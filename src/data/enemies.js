@@ -1,3 +1,4 @@
+import { BOSS_DESCRIPTIONS } from './ecology.js';
 /* ================= INIMIGOS =================
    Cada entrada define aparência e stats-base. O escalonamento por onda fica em
    game/waves.js.
@@ -11,6 +12,7 @@
    `healer_veteran` e `sniper_veteran` sem nunca tê-los definido, e o jogo
    quebrava com "Cannot read properties of undefined (reading 'hp')". */
 
+import { ENEMY_SPECIES, NEW_BOSSES, BOSS_ROSTER } from './ecology.js';
 export const EDEF = {
   /* ---------- comuns ---------- */
   grunter: { hp: 3, spd: 55, r: 13, score: 2, c: "#ff5d7f", art: "grunter", pattern: "chase" },
@@ -152,11 +154,7 @@ export const EDEF = {
 };
 
 /* Tipos-base que podem virar variante. */
-export const BASE_TYPES = [
-  "grunter", "runner", "shooter", "tank", "splitter", "orbiter",
-  "healer", "charger", "sniper", "bomber", "weaver", "warden", "spitter",
-  "leech", "breaker", "mortar", "sentinel", "stalker",
-];
+export const BASE_TYPES = ENEMY_SPECIES.map(e=>e.id);
 
 export const SUFFIX = [
   "", "_veteran", "_abissal", "_infernal", "_primordial", "_corrompido",
@@ -214,16 +212,14 @@ export function variantOf(base, tier) {
 
 /** Tier (0-5) a partir do nome do tipo. */
 export function tierOf(type) {
+  if(EDEF[type]?.rank!==undefined)return EDEF[type].rank;
   for (let t = SUFFIX.length - 1; t > 0; t--) {
     if (String(type).endsWith(SUFFIX[t])) return t;
   }
   return 0;
 }
 
-export const BOSS_POOL = [
-  "boss", "boss2", "boss3", "boss4", "boss5", "boss6",
-  "boss_elite", "boss_plague", "boss_tyrant",
-];
+export const BOSS_POOL = BOSS_ROSTER.filter(b=>b.id!=='boss_final').map(b=>b.id);
 
 export function isBoss(type) {
   return !!(EDEF[type] && EDEF[type].boss);
@@ -279,6 +275,18 @@ export const AFFIXES = {
 };
 
 export const AFFIX_KEYS = Object.keys(AFFIXES);
+
+Object.assign(EDEF, NEW_BOSSES);
+for(const species of ENEMY_SPECIES) {
+  for(let rank=0;rank<=2;rank++) {
+    const id=species.id+['','_veteran','_elite'][rank];
+    EDEF[id]={...species,base:species.id,rank,hp:species.hp*[1,1.65,2.5][rank],spd:species.spd*[1,1.08,1.14][rank],r:species.r+rank,
+      name:species.name+['',' Veterano',' de Elite'][rank],svg:'assets/enemies/'+species.id+'.svg'};
+  }
+  // Alias de saves/replays e do elenco legado de PVP.
+  EDEF[species.id+'_abissal']={...EDEF[species.id+'_elite']};
+}
+for(const b of BOSS_ROSTER)Object.assign(EDEF[b.id],{stage:b.stage,unlock:b.unlock,svg:'assets/bosses/'+b.id+'.svg',description:BOSS_DESCRIPTIONS[b.id]});
 
 /** Afixos que combinam com o tipo. Um atirador parado não ganha "Frenético". */
 export function affixPoolFor(type) {

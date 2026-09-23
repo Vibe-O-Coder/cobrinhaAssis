@@ -12,6 +12,7 @@ export const S = {
   phase: "menu", // menu | play | choice | over
   paused: false,
   runActive: false,
+  sandbox: null,
 
   /* --- overlays de leitura (poderes / status) ---
      Abrir um deles PAUSA o jogo. `ovPaused` lembra se foi o overlay que
@@ -51,6 +52,7 @@ export const S = {
   waveMod: null,
   finalArena: null,
   bossHazards: [],
+  hazardCount: 0,
   eid: 0,
 
   /* --- tempo / câmera / feedback --- */
@@ -102,6 +104,7 @@ export const S = {
 
 /** Zera tudo que pertence a uma run (mantém rede e configuração). */
 export function resetRun() {
+  S.sandbox = S.mode==='sandbox'?{invulnerable:true,freeCooldown:true,waveActive:false}:null;
   S.players = [];
   S.enemies = [];
   S.pbullets = [];
@@ -128,6 +131,7 @@ export function resetRun() {
   S.waveMod = null;
   S.finalArena = null;
   S.bossHazards = [];
+  S.hazardCount = 0;
   S.shake = 0;
   S.flash = 0;
   S.foodT = 0;

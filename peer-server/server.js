@@ -11,8 +11,8 @@ const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const secret = () => randomBytes(32).toString('base64url');
 const code = () => 'R-' + [...randomBytes(6)].map(n => alphabet[n % alphabet.length]).join('');
 const cleanCode = value => String(value || '').trim().toUpperCase();
-const commands = new Set(['hb','bye','ping','pong','hello','class','k','ab','it','pvpPick','pick','lobby','start','state','powers','up','go','pvpOver','over']);
-const guestCommands = new Set(['hb','bye','ping','pong','hello','class','k','ab','it','pvpPick','pick']);
+const commands = new Set(['rtc','hb','bye','ping','pong','hello','class','k','ab','it','pvpPick','pick','lobby','start','state','powers','up','go','pvpOver','over']);
+const guestCommands = new Set(['rtc','hb','bye','ping','pong','hello','class','k','ab','it','pvpPick','pick']);
 
 /** One instance owns its rooms. Add shared storage before scaling horizontally. */
 export function createGameServer({ legacyPeer = true, reconnectMs = 12000, roomLimit = 100 } = {}) {
@@ -31,7 +31,7 @@ export function createGameServer({ legacyPeer = true, reconnectMs = 12000, roomL
     next();
   });
   app.use(express.json({ limit: '4kb' }));
-  const health = (_req, res) => res.json({ service: 'cobrinha-relay', version: 2, rooms: rooms.size, transports: ['relay', 'webrtc'] });
+  const health = (_req, res) => res.json({ service: 'cobrinha-relay', version: 2, directUpgrade: true, rooms: rooms.size, transports: ['relay', 'webrtc'] });
   app.get('/', health);
   app.get('/health', health);
   const publicRoom = room => ({ code: room.code, name: room.name, mode: room.mode, private: room.private, players: 1 + Number(!!room.guest), maxPlayers: 2, started: room.started, createdAt: room.createdAt });
@@ -93,6 +93,7 @@ export function createGameServer({ legacyPeer = true, reconnectMs = 12000, roomL
     }
   }
   relay.on('connection', ws => {
+    ws._socket?.setNoDelay(true);
     let room = null, person = null, role = null, explicit = false;
     let count = 0, bytes = 0, windowStart = Date.now();
     ws.isAlive = true;
@@ -134,7 +135,7 @@ export function createGameServer({ legacyPeer = true, reconnectMs = 12000, roomL
         if (data.t === 'bye') explicit = true;
         const other = room[role === 'host' ? 'guest' : 'host'];
         if (!other?.ws || other.ws.readyState !== WebSocket.OPEN) return;
-        if (data.t === 'state' && other.ws.bufferedAmount > 128 * 1024) return;
+        if (data.t === 'state' && other.ws.bufferedAmount > 32 * 1024) return;
         if (other.ws.bufferedAmount > 2 * 1024 * 1024) return other.ws.close(4009, 'Slow connection');
         send(other.ws, { type: 'data', data: { ...data, from: person.id } });
       } catch { ws.close(4002, 'Invalid message'); }

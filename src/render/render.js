@@ -16,6 +16,7 @@ import {
 import { viewRect, inView } from "./camera.js";
 import { pvpBounds } from "../game/pvp.js";
 import { drawMinimap } from "./minimap.js";
+import { drawGlow } from './glows.js';
 
 export function renderConnecting() {
   ctx.clearRect(0, 0, CANVAS.w, CANVAS.h);
@@ -155,14 +156,7 @@ function drawPane(v, dt) {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r + 3);
-    g.addColorStop(0, "#f0d9ff");
-    g.addColorStop(0.5, b.c || "#b04dff");
-    g.addColorStop(1, "rgba(176,77,255,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, r + 3, 0, TAU);
-    ctx.fill();
+    drawGlow(b.x,b.y,r+3,b.c||'#b04dff');
   }
 
   for (const e of v.enemies) {
@@ -183,13 +177,11 @@ function drawPane(v, dt) {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    ctx.shadowColor = c;
-    ctx.shadowBlur = 8;
+    drawGlow(b.x,b.y,b.crit?10:7,c);
     ctx.fillStyle = b.crit ? "#ffd75e" : c;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.crit ? 5 : 3.5, 0, TAU);
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
 
   /* Torres do Engenheiro: desenhadas ANTES da cobra, para a cobra passar por

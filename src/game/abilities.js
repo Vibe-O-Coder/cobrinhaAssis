@@ -21,7 +21,7 @@ import { ultimateCooldown } from '../data/ultimates.js';
 
 export function tryAbility(p) {
   if (S.phase !== "play" || S.paused || !S.runActive) return;
-  if (!p || p.dead || p.abT > 0) return;
+  if (!p || p.dead || p.abT > 0 || p.silenceT>0 || p.staggerT>0) return;
   useAbility(p);
 }
 

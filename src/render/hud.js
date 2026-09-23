@@ -16,6 +16,7 @@ export function safeColor(c) {
 }
 
 /* Dois HP por coração. O valor exato, inclusive frações, fica nos status. */
+function statusMarks(p){return [['silenceT','Ult bloqueado'],['disarmT','Desarmado'],['staggerT','Stun'],['frostT','Gelo'],['poisonT','Veneno'],['burnT','Chamas']].filter(([k])=>p[k]>0).map(([k,n])=>`<span class="status-chip">${n} ${Math.ceil(p[k])}s</span>`).join('');}
 function hearts(p) {
   const hp = Math.max(0, p.hp);
   if (p.maxHp > 28) return "❤×" + (Math.round(hp) / 2) + " · " + hp + " HP";
@@ -69,7 +70,7 @@ function pvpPanel(p) {
   return (
     `<div class="pvpname" style="color:${col}">${c.ic} J${p.idx + 1} ` +
     `${esc(c.name)}${p.dead ? " 💀" : ""}<span class="lv">Nv ${p.level}</span></div>` +
-    bar("hp", p.hp / Math.max(1, p.maxHp), hpTxt) +
+    bar("hp", p.hp / Math.max(1, p.maxHp), hpTxt) + statusMarks(p) +
     (p.guardMax > 0
       ? bar("gd", p.guard / p.guardMax, "🛡 " + Math.round(p.guard))
       : "") +
@@ -123,7 +124,7 @@ export function updateHUD() {
     hl +=
       `<div class="hpbox" style="border-color:${col}88">` +
       `<span class="nm" style="color:${col}">${c.ic} J${p.idx + 1} ${esc(c.name)}${p.dead ? " 💀" : ""}</span><br>` +
-      `${p.dead ? "—" : hearts(p)}${p.shield > 0 ? " 🛡️" + p.shield : ""}</div>`;
+      `${p.dead ? "—" : hearts(p)}${p.shield > 0 ? " 🛡️" + p.shield : ""}${statusMarks(p)}</div>`;
   }
   $("#hudL").innerHTML = hl;
 
@@ -133,7 +134,7 @@ export function updateHUD() {
   const isFinal = v.wave >= FINAL_WAVE;
   $("#hudWave").textContent =
     (isFinal ? "☠️ " : kind === "act" ? "👑 " : kind ? "👹 " : "") +
-    "ONDA " + v.wave + " / " + FINAL_WAVE +
+    (S.sandbox?'SANDBOX · ONDA ':'ONDA ') + v.wave + " / " + FINAL_WAVE +
     "  ·  ATO " + (actOf(v.wave) + 1);
 
   const left =

@@ -1,3 +1,4 @@
+import { toggleSandbox } from "./ui/sandbox.js";
 /* ================= PONTO DE ENTRADA =================
 
    Com módulos ES as funções deixam de ser globais, então os `onclick="..."`
@@ -29,6 +30,8 @@ import {
 /* ---------- ações dos botões ---------- */
 
 const ACTIONS = {
+  "run-sandbox": () => gotoClass('sandbox'),
+  "sandbox-panel": () => toggleSandbox(),
   "run-solo": () => gotoClass("solo"),
   "run-local": () => gotoClass("local"),
   "run-pvp": () => gotoClass("pvp"),
@@ -98,7 +101,7 @@ const ACTIONS = {
     toMenu();
     if (S.lastMode === "online") { openOnline(); return; }
     gotoClass(
-      S.lastMode === "pvp" ? "pvp" : S.lastMode === "local" ? "local" : "solo",
+      S.lastMode === 'sandbox' ? 'sandbox' : S.lastMode === "pvp" ? "pvp" : S.lastMode === "local" ? "local" : "solo",
     );
   },
 };

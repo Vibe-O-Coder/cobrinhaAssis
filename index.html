@@ -50,7 +50,8 @@
       <button class="btn pvp" data-act="run-pvp">
         ⚔️ PVP — DUELO EM TELA DIVIDIDA
       </button>
-      <button class="btn" data-act="open-online">🌐 MULTIPLAYER ONLINE</button>
+      <button class="btn" data-act="run-sandbox">🧪 Sandbox</button>
+        <button class="btn" data-act="open-online">🌐 MULTIPLAYER ONLINE</button>
       <button class="btn" data-act="open-board">🏆 RANKING</button>
       <button class="btn" data-act="open-shop">🛒 LOJA DE ALMAS</button>
       <button class="btn" data-act="open-tree">🌳 ÁRVORE DE HABILIDADES</button>
@@ -256,6 +257,8 @@
 
     <!-- ================= JOGO ================= -->
     <div id="game" class="screen hidden">
+      <button id="sandboxButton" class="btn small hidden" data-act="sandbox-panel">🧪 Laboratório · B</button>
+      <aside id="sandboxPanel" class="hidden" aria-label="Laboratório sandbox"></aside>
       <div id="hud">
         <div id="hudL" class="row"></div>
         <div id="hudC">

@@ -17,6 +17,7 @@ import { W, H, TAU, CELL } from "../core/config.js";
 const MAX_PARTS = 420;
 const MAX_TEXTS = 60;
 const MAX_EFFECTS = 160;
+const partPool = [];
 
 /* Fila de efeitos para mandar ao convidado.
    O convidado não simula nada, então sem isto ele não via NADA: nem a linha de
@@ -31,10 +32,11 @@ const MAX_NET_TEXTS = 14;
 
 
 export function addParts(x, y, c, n, sp) {
+  n = Math.min(n, MAX_PARTS - S.parts.length);
   for (let i = 0; i < n; i++) {
     const a = rnd(0, TAU);
     const s = rnd(40, 150) * (sp || 1) * 0.5;
-    S.parts.push({
+    S.parts.push(Object.assign(partPool.pop() || {}, {
       x, y,
       vx: Math.cos(a) * s,
       vy: Math.sin(a) * s - 40,
@@ -42,11 +44,12 @@ export function addParts(x, y, c, n, sp) {
       maxLife: 0.7,
       c,
       r: rnd(2, 4),
-    });
+    }));
   }
 }
 
 export function addText(x, y, txt, c, life, s) {
+  if(S.texts.length>=MAX_TEXTS)S.texts.shift();
   const t = { x, y, txt, c, life, maxLife: life, s: s || 14 };
   S.texts.push(t);
   if (S.role === "host" && pendingTexts.length < MAX_NET_TEXTS) pendingTexts.push(t);
@@ -78,11 +81,11 @@ export function drainNetFx() {
 export function applyNetFx(pack) {
   if (!pack) return;
   for (const ef of pack.f || []) {
-    if (S.effects.length > MAX_EFFECTS) break;
+    if (S.effects.length >= MAX_EFFECTS) break;
     S.effects.push({ ...ef });
   }
   for (const t of pack.t || []) {
-    if (S.texts.length > MAX_TEXTS) break;
+    if (S.texts.length >= MAX_TEXTS) break;
     S.texts.push({ ...t });
   }
 }
@@ -129,14 +132,17 @@ export function updateFx(dt) {
   S.shake = Math.max(0, S.shake - dt * 26);
   S.flash = Math.max(0, S.flash - dt * 2);
 
-  for (let i = S.parts.length - 1; i >= 0; i--) {
+  let liveParts=0;
+  for (let i = 0; i < S.parts.length; i++) {
     const p = S.parts[i];
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.vy += 140 * dt;
     p.life -= dt;
-    if (p.life <= 0) S.parts.splice(i, 1);
+    if (p.life <= 0) {if(partPool.length<MAX_PARTS)partPool.push(p);}
+    else S.parts[liveParts++]=p;
   }
+  S.parts.length=liveParts;
 
   for (let i = S.texts.length - 1; i >= 0; i--) {
     const t = S.texts[i];

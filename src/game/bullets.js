@@ -12,6 +12,8 @@ import { isBoss } from "../data/enemies.js";
 import { blockRegen, weaken } from "./player.js";
 import { chainLightning } from "./classes.js";
 import { slowEnemy, stunEnemy, curseEnemy } from "./enemies.js";
+import { SpatialGrid, segmentCircle } from '../core/spatial.js';
+import { inflict } from './statuses.js';
 import { isPvp, pvpBulletHit, pvpHit } from "./pvp.js";
 
 /** Afixos que o projétil inimigo carrega (ver game/enemies.js). */
@@ -93,9 +95,12 @@ export function hitEnemy(e, b) {
   }
 }
 
+const bulletGrid = new SpatialGrid(), candidates = [];
 export function updateBullets(dt) {
+  bulletGrid.rebuild(S.enemies);
   for (let i = S.pbullets.length - 1; i >= 0; i--) {
     const b = S.pbullets[i];
+    const oldX=b.x, oldY=b.y;
     b.x += b.vx * dt;
     b.y += b.vy * dt;
     b.life -= dt;
@@ -110,10 +115,10 @@ export function updateBullets(dt) {
     }
 
     if (!dead) {
-      for (const e of S.enemies) {
+      for (const e of bulletGrid.query(Math.min(oldX,b.x)-40,Math.min(oldY,b.y)-40,Math.max(oldX,b.x)+40,Math.max(oldY,b.y)+40,candidates)) {
         if (e.hp <= 0) continue;
         if (b.hits.includes(e.id)) continue;
-        if (dist(b.x, b.y, e.x, e.y) < e.r + 6) {
+        if (segmentCircle(oldX,oldY,b.x,b.y,e.x,e.y,e.r+6)) {
           b.hits.push(e.id);
           hitEnemy(e, b);
           if (b.pierce > 0) b.pierce--;
@@ -193,10 +198,11 @@ export function updateEBullets(dt) {
         const h = headPx(p);
         if (dist(b.x, b.y, h.x, h.y) < (b.r || 6) + 11) {
           const hpAntes = p.hp;
-          hitPlayer(p);
+          hitPlayer(p,b.damage||1);
           /* O projétil carrega os afixos de quem atirou: um atirador Corrosivo
              enfraquece de longe, não só no corpo a corpo. */
           if (p.hp < hpAntes && b.aff) applyBulletAffix(b.aff, p);
+          if (p.hp < hpAntes) inflict(p,b.effect);
           dead = true;
           break;
         }

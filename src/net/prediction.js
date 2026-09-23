@@ -7,9 +7,10 @@ const clone=p=>({...p,cells:p.cells.map(c=>[...c]),dir:{...p.dir},qdir:p.qdir?{.
 const wrap=(n,lo,size)=>lo+((n-lo)%size+size)%size;
 function advance(p,ms){
   if(!p||p.dead)return;
+  if(p.staggerT>0){p.staggerT=Math.max(0,p.staggerT-ms/1000);p.mt=Math.max(0,p.mt);return;}
   p.mt-=ms;
   for(let guard=0;p.mt<=0&&guard<4;guard++){
-    p.mt+=p.spd*(p.pvpSlowT>0?1.25:1);
+    p.mt+=p.spd*(p.frostT>0?1.4:p.pvpSlowT>0?1.25:1);
     if(p.qdir){const d=p.qdir;p.qdir=null;if(d.x!==-p.dir.x||d.y!==-p.dir.y)p.dir=d;}
     const a=S.rs?.pvp?.arena || arenaCellBounds(S.rs?.finalArena);
     const h=p.cells[0];
