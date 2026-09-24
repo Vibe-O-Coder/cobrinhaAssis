@@ -1,0 +1,10 @@
+{
+  "results": [
+    "Co-op LAN: câmeras individuais, pausa sincronizada e poderes dos dois jogadores",
+    "Predição visual responde antes do comando atrasado chegar ao host",
+    "PVP WebRTC: conexão direta, controles e vitória por desconexão",
+    "Host sai: convidado vence com os níveis, abates e recompensa do último estado"
+  ],
+  "ping": 2,
+  "errors": []
+}
