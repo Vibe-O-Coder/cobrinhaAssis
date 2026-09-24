@@ -1,0 +1,7 @@
+node_modules/
+.npm-cache/
+tests/artifacts/
+backend/srkx_data/
+.env
+.env.*
+!.env.example

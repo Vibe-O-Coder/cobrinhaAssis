@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Memórias da Grade · Concepts de cutscenes</title>
+<style>
+:root{color-scheme:dark;--bg:#101319;--paper:#191e26;--line:#343d49;--ink:#e8eee8;--soft:#a4b0bc;--gold:#e9c877}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 system-ui,sans-serif}main{max-width:1340px;margin:auto;padding:48px 32px}header{display:grid;grid-template-columns:1.6fr 1fr;gap:40px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:30px;margin-bottom:28px}.eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--gold)}h1{font:500 clamp(36px,5vw,66px)/1.08 Georgia,serif;margin:14px 0 18px;letter-spacing:-.04em}h1 span{color:var(--gold)}p{margin:10px 0;color:var(--soft)}header p{max-width:600px}.note{font-size:13px;border-left:2px solid var(--gold);padding-left:18px}.board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}article{background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden}.slate{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;font-size:11px;letter-spacing:.09em;color:var(--gold);border-bottom:1px solid var(--line)}article svg{display:block;width:100%;height:auto;background:#080d13}article .copy{padding:20px 24px 24px}h2{font:500 27px/1.2 Georgia,serif;margin:0 0 12px;color:var(--ink)}.subtitle{font-size:12px;color:var(--gold);margin:0 0 10px}.shots{display:grid;grid-template-columns:1fr 1fr;gap:15px;font-size:13px;margin-top:17px}.shots b{display:block;font-size:10px;letter-spacing:.14em;color:var(--ink);margin-bottom:4px}button{border:1px solid #657169;background:transparent;color:#ceddcf;padding:9px 13px;border-radius:4px;font:inherit;font-size:12px;cursor:pointer;margin-top:16px}button:hover,button:focus-visible{background:#29372e;border-color:var(--gold)}.playback{display:flex;gap:24px;align-items:center;justify-content:space-between;padding:18px 22px;border:1px solid var(--line);margin-bottom:28px;border-radius:8px}.playback p{font-size:12px;margin:0}.playback strong{font-size:13px}audio{max-width:100%;width:330px;height:36px}footer{font-size:12px;border-top:1px solid var(--line);padding:25px 0;margin-top:32px}a{color:var(--gold)}.tag{font-size:10px;letter-spacing:.1em;color:var(--soft)}
+@media(max-width:740px){main{padding:28px 16px}header{grid-template-columns:1fr;gap:12px}.board{grid-template-columns:1fr;gap:22px}.playback{display:block}.playback audio{margin-top:12px;width:100%}.shots{gap:12px}article .copy{padding:18px}.slate{font-size:10px}h2{font-size:25px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+ <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><path d="M28 0H0V28" fill="none" stroke="#78c7bf" stroke-width=".7" opacity=".25"/></pattern>
+ <pattern id="pixelGrid" width="18" height="18" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="16" height="16" fill="#6f9251" opacity=".16"/></pattern>
+ <radialGradient id="void"><stop stop-color="#2e2140"/><stop offset="1" stop-color="#070b13"/></radialGradient>
+ <radialGradient id="light"><stop stop-color="#f4dd91" stop-opacity=".4"/><stop offset="1" stop-color="#f4dd91" stop-opacity="0"/></radialGradient>
+ <linearGradient id="era"><stop stop-color="#9dbf74"/><stop offset=".35" stop-color="#ba8bdc"/><stop offset=".7" stop-color="#69ceda"/><stop offset="1" stop-color="#e9c877"/></linearGradient>
+ <g id="snake"><path d="M-58 20H-18V-10H22V-40H62" fill="none" stroke="currentColor" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/><circle cx="61" cy="-43" r="2.4" fill="#101319"/></g>
+</defs></svg>
+<main>
+<header>
+ <div><div class="eyebrow">Cobrinha / desenvolvimento visual / 01</div><h1>Memórias<br>da <span>Grade.</span></h1><p>Seis estudos para uma história sobre crescer, lembrar e aprender a preservar. O primeiro pixel e a última luz são a mesma imagem.</p></div>
+ <div class="note"><strong>Concepts, não cenas prontas.</strong><p>Composições vetoriais para orientar os próximos storyboards. A protagonista usa a cor da classe escolhida. Os tempos são propostas de montagem; as músicas são os arquivos originais entregues.</p><a href="PROJETO_LORE.md">Ler o projeto de lore ↗</a></div>
+</header>
+<div class="playback"><div><strong id="playingTitle">Referências musicais</strong><p>Use o botão de uma cena para ouvir sua trilha. Nenhum áudio começa sozinho.</p></div><audio id="referenceAudio" controls preload="none" aria-label="Referência musical do conceito"></audio></div>
+<section class="board" aria-label="Prancha de conceitos">
+<article>
+ <div class="slate"><span>01 / DESPERTAR</span><span>ABERTURA · 15–20 S</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="Uma serpente verde desperta num visor antigo; um pixel dourado abre uma fissura além da tela.">
+  <rect width="640" height="360" fill="#141c17"/><circle cx="438" cy="176" r="150" fill="url(#light)"/>
+  <rect x="94" y="43" width="452" height="276" rx="23" fill="#252f29" stroke="#485340" stroke-width="2"/>
+  <rect x="117" y="70" width="406" height="214" rx="4" fill="#172a1c"/>
+  <rect x="117" y="70" width="406" height="214" fill="url(#pixelGrid)"/>
+  <use href="#snake" x="264" y="192" color="#b9d984"/>
+  <rect x="410" y="143" width="16" height="16" fill="#f6dc82"/>
+  <path d="M428 151H486L497 166H523L558 142H591" fill="none" stroke="#e9c877" stroke-width="2"/>
+  <path d="M119 286H523" stroke="#758160"/><circle cx="320" cy="303" r="4" fill="#7a895e"/>
+  <text x="131" y="96" fill="#94b272" font-family="monospace" font-size="10">01 : UM CAMINHO</text>
+  <text x="319" y="342" fill="#8b9c81" font-family="monospace" text-anchor="middle" font-size="10">A COR AINDA NÃO PERTENCE À TELA.</text>
+ </svg>
+ <div class="copy"><p class="subtitle">“Tudo começou com um caminho.”</p><h2>Um ponto decide mover.</h2><p>O visor acende por linhas. A serpente alcança o alimento, e uma fissura dourada ultrapassa a moldura. A câmera aproxima até a grade ocupar a tela jogável.</p><div class="shots"><div><b>MOVIMENTO</b>Plano imóvel → avanço lento. Três gestos: acender, mover, abrir.</div><div><b>CONTINUIDADE</b>O mesmo pixel retorna no survival e no epílogo.</div></div><button data-track="monocromo" data-title="Primeiro Pixel">Ouvir · Primeiro Pixel</button></div>
+</article>
+<article>
+ <div class="slate"><span>02 / O PRIMEIRO GUARDIÃO</span><span>ZARATH · 2–4 S</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="Zarath ocupa a passagem; sua coroa desenha anéis com dois espaços de fuga diante da serpente.">
+  <rect width="640" height="360" fill="#13131d"/><rect x="30" y="26" width="580" height="310" fill="url(#grid)"/>
+  <circle cx="405" cy="146" r="122" fill="none" stroke="#d98bc1" stroke-opacity=".3" stroke-dasharray="12 9"/>
+  <path d="M290 203A128 128 0 0 1 491 52M511 219A128 128 0 0 1 371 270" fill="none" stroke="#cb79ae" stroke-width="5" stroke-dasharray="2 22" stroke-linecap="round"/>
+  <image href="../assets/bosses/boss.svg" x="313" y="55" width="184" height="184"/>
+  <use href="#snake" x="155" y="291" color="#94cb8c"/>
+  <path d="M189 234L240 210" stroke="#e9c877" stroke-width="2"/><path d="M229 211L242 209 236 220" fill="none" stroke="#e9c877"/>
+  <text x="42" y="52" fill="#a0acae" font-family="monospace" font-size="10">LER A COROA. ENCONTRAR A PASSAGEM.</text>
+  <text x="404" y="315" fill="#d9a0c2" font-family="monospace" text-anchor="middle" font-size="14">ZARATH, O PRIMOGÊNITO</text>
+ </svg>
+ <div class="copy"><p class="subtitle">A primeira curva que aprendeu a se defender.</p><h2>Um padrão, uma promessa.</h2><p>O chefe ergue a coroa, mostrando a forma do seu primeiro ataque. Os anéis têm aberturas legíveis. A apresentação prepara a leitura da luta sem antecipar dano.</p><div class="shots"><div><b>MOVIMENTO</b>A coroa gira uma fração de volta. Nome curto, retorno direto ao combate.</div><div><b>SOM</b>Impacto do chefe e tema procedural atual. Faixa exclusiva ainda não entregue.</div></div></div>
+</article>
+<article>
+ <div class="slate"><span>03 / A MEMÓRIA FALHA</span><span>CORRUPÇÃO · 10–15 S</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="Uma sombra apaga parte da grade e um alimento. A serpente observa uma região sem chão nem destroços.">
+  <rect width="640" height="360" fill="#201521"/><rect width="640" height="360" fill="url(#grid)"/>
+  <path d="M350 0H640V360H320L346 314 315 267 353 227 322 188 376 134 342 92Z" fill="#080a10"/>
+  <path d="M350 0L342 92 376 134 322 188 353 227 315 267 346 314 320 360" fill="none" stroke="#ef7186" stroke-width="2"/>
+  <rect x="281" y="86" width="31" height="15" fill="#b97ebd"/><rect x="246" y="195" width="53" height="8" fill="#5dd1db" opacity=".5"/>
+  <rect x="317" y="121" width="19" height="19" fill="#e9c877"/><rect x="327" y="121" width="10" height="19" fill="#090b11"/>
+  <use href="#snake" x="161" y="249" color="#83cebd"/>
+  <path d="M241 266H272V244H310" fill="none" stroke="#7a7489" stroke-dasharray="4 8"/>
+  <text x="413" y="177" fill="#666875" font-family="monospace" font-size="10">NENHUM ECO.</text>
+  <text x="35" y="333" fill="#d6a8b5" font-family="monospace" font-size="10">O VAZIO NÃO DEIXA LEMBRANÇAS.</text>
+ </svg>
+ <div class="copy"><p class="subtitle">A ausência passa a ser o inimigo.</p><h2>Apagar não é destruir.</h2><p>Um alimento e uma criatura desaparecem da mesma maneira. Não há explosão ou recompensa. A sombra remove até as linhas do chão: pela primeira vez, crescer não resolve a ameaça.</p><div class="shots"><div><b>MOVIMENTO</b>Falha curta de posição → apagamento lento. Sem estrobos.</div><div><b>SOM</b>Retirar camadas do tema de corrupção. O silêncio ocupa o espaço apagado.</div></div></div>
+</article>
+<article>
+ <div class="slate"><span>04 / A ESCALA DA FOME</span><span>DEVORADOR · 20–25 S</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="O Devorador domina o céu; fragmentos das eras convergem para seu olho, acima de uma pequena serpente.">
+  <rect width="640" height="360" fill="url(#void)"/>
+  <path d="M30 351L193 195H444L610 351M81 313H568M133 267H507M177 224H465M320 198V351M239 197L206 350M403 196L448 351" fill="none" stroke="#62505e" stroke-width="1"/>
+  <image href="../assets/bosses/boss_final.svg" x="162" y="-99" width="316" height="316"/>
+  <path d="M50 57L98 108 220 145M591 46L555 116 420 140" stroke="#a18354" fill="none" stroke-dasharray="3 10"/>
+  <g fill="#c3cf78"><rect x="77" y="75" width="13" height="13" transform="rotate(20 77 75)"/><rect x="172" y="151" width="8" height="8"/></g>
+  <g fill="#c98fdf"><rect x="535" y="81" width="17" height="17" transform="rotate(-20 535 81)"/><rect x="472" y="152" width="9" height="9"/></g>
+  <use href="#snake" transform="translate(294 311) scale(.58)" color="#8fd4d2"/>
+  <path d="M18 271H77M562 271H621" stroke="#dfc275" stroke-width="2"/><path d="M33 263L18 271 33 279M606 263L621 271 606 279" fill="none" stroke="#dfc275" stroke-width="2"/>
+  <circle cx="298" cy="180" r="4" fill="#e6cf8a"/><circle cx="320" cy="180" r="4" fill="#e6cf8a"/><circle cx="342" cy="180" r="4" fill="#e6cf8a"/>
+ </svg>
+ <div class="copy"><p class="subtitle">A Fome entre os Mundos.</p><h2>O céu olha de volta.</h2><p>A sombra cobre o topo e atrai fragmentos das eras. Uma linha sai pela esquerda e volta pela direita, revelando a continuidade da arena. Três núcleos antecipam as fases.</p><div class="shots"><div><b>MOVIMENTO</b>Plano amplo → olho → arena. O último enquadramento já é o do jogo.</div><div><b>ENTRADA SEGURA</b>Controle e avisos voltam antes dos ataques. A cena poderá ser pulada.</div></div><button data-track="a-fome-entre-os-mundos" data-title="A Fome entre os Mundos">Ouvir · A Fome entre os Mundos</button></div>
+</article>
+<article>
+ <div class="slate"><span>05 / GUARDAR A ÚLTIMA LUZ</span><span>FASE II · SURVIVAL</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="A luz brilha dentro da serpente, cercada por espirais de projéteis com corredores abertos. O núcleo do chefe está fechado.">
+  <rect width="640" height="360" fill="#10131f"/>
+  <image href="../assets/bosses/boss_final.svg" x="245" y="-44" width="150" height="150" opacity=".7"/>
+  <path d="M100 126C159 18 521 93 532 249M78 203C100 351 377 337 502 309M172 132C196 100 402 92 449 192" fill="none" stroke="#b68acb" stroke-width="6" stroke-linecap="round" stroke-dasharray="1 21"/>
+  <path d="M536 118C475 28 141 97 113 253M556 211C520 347 310 318 231 295M477 116C448 89 256 89 203 183" fill="none" stroke="#6cbed1" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 25"/>
+  <circle cx="346" cy="237" r="101" fill="url(#light)"/>
+  <use href="#snake" transform="translate(288 268) scale(.72)" color="#a5d2c1"/>
+  <rect x="328" y="233" width="9" height="9" fill="#fff5d5"/>
+  <path d="M349 227L363 209 387 205" fill="none" stroke="#e7daaa" stroke-dasharray="4 5"/>
+  <text x="320" y="332" fill="#e4d7b0" text-anchor="middle" font-family="monospace" font-size="11">SOBREVIVA À CANÇÃO · NÚCLEO PROTEGIDO</text>
+ </svg>
+ <div class="copy"><p class="subtitle">Ainda Há um Sinal · gravação vocal em inglês.</p><h2>A vitória é continuar.</h2><p>A transformação cabe em um instante; a canção pertence ao combate jogável. A Última Luz está na serpente. Sobreviver preserva o mundo, sem acrescentar um alvo para escoltar.</p><div class="shots"><div><b>RITMO</b>4min18s em 1×. Cortinas → espirais → corredores → clímax.</div><div><b>LEITURA</b>Barra de tempo e núcleo protegido. Música e relógio pausam juntos.</div></div><button data-track="ainda-ha-um-sinal" data-title="Ainda Há um Sinal · vocal em inglês">Ouvir · Ainda Há um Sinal</button></div>
+</article>
+<article>
+ <div class="slate"><span>06 / DEVOLVER</span><span>EPÍLOGO · 20–30 S</span></div>
+ <svg viewBox="0 0 640 360" role="img" aria-label="A serpente deixa um pixel luminoso na grade. As cores das eras voltam, espalhando-se em caminhos a partir dele.">
+  <rect width="640" height="360" fill="#152022"/><rect x="28" y="30" width="584" height="302" fill="url(#grid)" opacity=".6"/>
+  <circle cx="368" cy="165" r="161" fill="url(#light)"/>
+  <path d="M368 165H451V105H555M368 165V259H490V305M368 165H317V90H210V51M368 165V211H276V282H104" stroke="url(#era)" stroke-width="4" fill="none"/>
+  <path d="M369 165H424V64M368 165H319V137H158M368 165V250H345V306" stroke="#bed0ab" stroke-width="1" fill="none" opacity=".5"/>
+  <use href="#snake" x="222" y="205" color="#afcf9b"/>
+  <rect x="359" y="156" width="18" height="18" fill="#fff2b9"/>
+  <g fill="#e7d796"><rect x="550" y="100" width="10" height="10"/><rect x="485" y="300" width="10" height="10"/><rect x="205" y="46" width="10" height="10"/><rect x="99" y="277" width="10" height="10"/></g>
+  <text x="320" y="340" fill="#b6c6b5" text-anchor="middle" font-family="monospace" font-size="11">AINDA HÁ ONDE COMEÇAR.</text>
+ </svg>
+ <div class="copy"><p class="subtitle">O primeiro pixel, agora preservado.</p><h2>Nem tudo precisa ser comido.</h2><p>Depois de vencer a fase III, a serpente para diante da luz e a devolve. A cor retorna por caminhos discretos. A câmera recua até o mundo caber novamente no visor da abertura.</p><div class="shots"><div><b>MOVIMENTO</b>Gesto pequeno → expansão da grade → visor. Encerramento sem flashes.</div><div><b>SOM</b>Reprise suave do menu como referência. A trilha de epílogo ainda será produzida.</div></div><button data-track="menu" data-title="Menu · referência provisória do epílogo">Ouvir · referência do epílogo</button></div>
+</article>
+</section>
+<footer><span class="tag">PRÓXIMA ETAPA</span><p>Transformar os quadros 01, 04 e 06 em animatics. Manter as cenas dispensáveis, com legendas e movimento reduzido; no co-op, enquadrar as duas serpentes e coordenar o retorno ao combate.</p><p>Arte de referência dos chefes: SVGs do próprio jogo. Prancha vetorial criada para esta proposta. <a href="PLANO_CUTSCENES.md">Plano das cenas</a> · <a href="../tracks/README.md">Catálogo das faixas</a></p></footer>
+</main>
+<script>
+const audio=document.querySelector('#referenceAudio');
+for(const button of document.querySelectorAll('[data-track]'))button.addEventListener('click',()=>{
+ audio.src='../tracks/'+button.dataset.track+'.mp3';
+ document.querySelector('#playingTitle').textContent=button.dataset.title;
+ audio.play().catch(()=>{document.querySelector('#playingTitle').textContent='Use o controle de reprodução para ouvir a referência.';});
+});
+</script>
+</body></html>

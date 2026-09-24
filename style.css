@@ -1,0 +1,1399 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+body {
+  background: radial-gradient(1200px 800px at 50% -10%, #241245, #0a0714 70%);
+  min-height: 100vh;
+  font-family: "Rajdhani", sans-serif;
+  color: #e8e2ff;
+  overflow-x: hidden;
+}
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 16px;
+  overflow-y: auto;
+  z-index: 5;
+}
+.hidden {
+  display: none !important;
+}
+.online-panel { width: min(100%, 740px); margin-top: 8px; text-align: center; }
+.auto-connection { display: inline-flex; gap: 10px; align-items: center; font-weight: 700; color: #97edba; }
+.net-advanced { margin: 12px 0; text-align: left; color: #b9a8ff; }
+.net-advanced summary { cursor: pointer; padding: 8px 0; }
+.net-advanced .row { margin-top: 10px; }
+.room-create, .room-join, .room-browser { padding: 18px 0; border-top: 1px solid #7c4dff44; }
+.online-panel h3 { color: #e8e2ff; font-size: 20px; text-align: left; margin-bottom: 12px; }
+.room-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
+.room-fields label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; color: #c7b9ef; min-width: 0; }
+.room-fields input, .room-fields select { width: 100%; min-width: 0; font: inherit; padding: 10px 12px; background: #0f0920; color: #f4edff; border: 1px solid #70529b; border-radius: 8px; user-select: text; }
+.room-fields input:focus, .room-fields select:focus { outline: 2px solid #ac8df5; outline-offset: 2px; }
+.room-fields .code { letter-spacing: 2px; }
+.room-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.room-list-heading h3 { margin: 0; }
+#roomList { display: grid; gap: 10px; }
+.room-entry, .room-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; border: 1px solid #71529766; border-radius: 10px; padding: 12px; background: #1e1236; }
+.room-entry > div, .room-row > div { min-width: 0; overflow-wrap: anywhere; }
+.room-entry .btn, .room-row .btn { flex-shrink: 0; }
+.lobby-password { user-select: text; font-size: 19px; color: #ffd75e; margin: 8px 0; overflow-wrap: anywhere; }
+.card.class-card, .pwcard.class-card, .pvp-choice .class-card { border: 2px solid #62dcd3; box-shadow: inset 0 0 0 2px #143938, 0 0 14px #62dcd322; }
+.card.ultimate-card, .pwcard.ultimate-card, .pvp-choice .ultimate-card { border: 3px double #ffd75e; background: linear-gradient(150deg, #34224e, #1b102d); }
+.class-badge { display: inline-block; border: 1px solid #62dcd3; border-radius: 5px; padding: 2px 6px; margin: 4px 0; color: #adfff2; font-size: 11px; letter-spacing: .6px; }
+.ultimate-card .class-badge { color: #ffe7a0; border-color: #e5bc55; }
+.ultimate-summary { padding: 12px; margin: 10px 0; background: #261734; border: 1px solid #ffd75e77; border-radius: 10px; }
+.ultimate-summary p { margin-top: 5px; color: #d9c9e9; }
+.class-paths { margin-top: 10px; padding-top: 8px; border-top: 1px solid #7c4dff55; color: #dbc1ff; font-size: 12px; }
+.class-paths summary { cursor: pointer; }
+@media (max-width: 520px) {
+  .online-panel { padding: 14px; }
+  .room-fields { grid-template-columns: 1fr; }
+  .room-entry, .room-row { flex-wrap: wrap; }
+  .online-panel .btn { max-width: 100%; min-width: 0; }
+}
+h1.logo {
+  font-family: "Orbitron";
+  font-weight: 900;
+  font-size: clamp(30px, 6vw, 58px);
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #ffd75e, #ff7b3d 55%, #b04dff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(176, 77, 255, 0.55));
+  text-align: center;
+  margin: 10px 0 2px;
+}
+.sub {
+  color: #b9a8ff;
+  letter-spacing: 4px;
+  font-size: 14px;
+  text-transform: uppercase;
+  margin-bottom: 22px;
+  text-align: center;
+}
+.btn {
+  font-family: "Rajdhani";
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 1px;
+  color: #e8e2ff;
+  background: linear-gradient(180deg, #241640, #170e2c);
+  border: 1px solid #7c4dff66;
+  border-radius: 12px;
+  padding: 13px 26px;
+  margin: 6px;
+  min-width: 280px;
+  cursor: pointer;
+  transition: 0.15s;
+  text-align: center;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  border-color: #ffd75e;
+  box-shadow: 0 0 22px #ffd75e44;
+  color: #ffd75e;
+}
+.btn.gold {
+  background: linear-gradient(180deg, #4d3207, #2b1c04);
+  border-color: #ffd75e88;
+  color: #ffd75e;
+}
+.btn.small {
+  min-width: 0;
+  padding: 8px 18px;
+  font-size: 16px;
+}
+.panel {
+  background: #150d27cc;
+  border: 1px solid #7c4dff44;
+  border-radius: 16px;
+  padding: 18px 22px;
+  backdrop-filter: blur(4px);
+}
+.stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 14px 0;
+}
+.stat {
+  background: #1b1133;
+  border: 1px solid #7c4dff44;
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 16px;
+}
+.stat b {
+  color: #ffd75e;
+}
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  max-width: 1050px;
+  margin: 14px 0;
+}
+.card {
+  width: 160px;
+  background: linear-gradient(180deg, #1d1236, #130b24);
+  border: 1px solid #7c4dff55;
+  border-radius: 14px;
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.15s;
+  position: relative;
+}
+.card:hover {
+  transform: translateY(-4px) scale(1.03);
+  border-color: #ffd75e;
+  box-shadow: 0 8px 30px #b04dff44;
+}
+.card .ic {
+  font-size: 40px;
+}
+.card h3 {
+  font-family: "Orbitron";
+  font-size: 15px;
+  margin: 6px 0;
+  color: #ffd75e;
+}
+.card p {
+  font-size: 13px;
+  color: #c3b6ea;
+  line-height: 1.25;
+  min-height: 52px;
+}
+.card .tags {
+  font-size: 12px;
+  color: #8fe6b8;
+  margin-top: 6px;
+}
+.card.sel {
+  border-color: #7dff5e;
+  box-shadow: 0 0 18px #7dff5e55;
+}
+h2.tit {
+  font-family: "Orbitron";
+  font-size: clamp(20px, 3.5vw, 30px);
+  color: #ffd75e;
+  margin: 8px 0 4px;
+  text-align: center;
+  text-shadow: 0 0 18px #ffd75e44;
+}
+.hintbar {
+  color: #9c8cc9;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 8px;
+}
+#hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: min(1120px, 96vw);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.hpbox {
+  background: #170e2ccc;
+  border: 1px solid #7c4dff44;
+  border-radius: 10px;
+  padding: 5px 12px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.hpbox .nm {
+  font-family: "Orbitron";
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+#hudC {
+  text-align: center;
+  font-family: "Orbitron";
+}
+#hudC .wv {
+  font-size: 20px;
+  color: #ffd75e;
+  text-shadow: 0 0 12px #ffd75e66;
+}
+#hudC .sc {
+  font-size: 14px;
+  color: #c3b6ea;
+}
+.abwrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.abicon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border: 2px solid #ffd75e66;
+  background: #241a3d;
+}
+.abicon.ready {
+  animation: pulse 1s infinite;
+  border-color: #7dff5e;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 16px #7dff5e;
+  }
+}
+#cwrap {
+  position: relative;
+  /* line-height: 0 aqui era herdado pelo #banner, e o título da onda ficava
+     desenhado em cima do subtítulo. O canvas usa display:block em vez disso. */
+  line-height: normal;
+  font-size: 0;
+}
+canvas#cv {
+  display: block;
+  /* O canvas tem 1120x700 internos (a janela da câmera). Aqui ele só é
+     ajustado à tela mantendo a proporção — nada de espremer um mapa de
+     2800x2100 em 960px como antes. */
+  width: min(1120px, 96vw);
+  max-height: 78vh;
+  aspect-ratio: 1120 / 700;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid #7c4dff55;
+  box-shadow: 0 0 40px #7c4dff33;
+  background: #0d0918;
+}
+#cwrap > *:not(canvas) {
+  font-size: 16px;
+}
+#banner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+}
+#banner.show {
+  animation: bann 1.9s ease forwards;
+}
+#bannerT {
+  font-family: "Orbitron";
+  font-weight: 900;
+  font-size: clamp(28px, 6vw, 54px);
+  color: #ffd75e;
+  text-shadow: 0 0 30px #ff7b3d;
+}
+#bannerS {
+  font-size: 18px;
+  color: #e8e2ff;
+  text-shadow: 0 0 10px #000;
+}
+@keyframes bann {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  30% {
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.ov {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 4, 18, 0.86);
+  backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 9;
+  line-height: 1.4;
+  text-align: center;
+  padding: 14px;
+}
+/* Empilhamento dos overlays do jogo.
+   ATENÇÃO: CSS não tem comentário com "#". A regra aqui era
+   `z-index: 99 !important;  # Powers aparecem NA FRENTE do pause!`
+   e o navegador descartava o lixo depois do ponto e vírgula. */
+#pauseOv {
+  z-index: 12;
+}
+#upOv {
+  z-index: 14;
+}
+/* Poderes por cima de tudo: dá pra consultar a build COM o jogo pausado. */
+#powersOv {
+  z-index: 40;
+}
+
+/* Modo convidado: quem não é host não controla a pausa. */
+#pauseGuest {
+  display: none;
+}
+body.is-guest #pauseBtns {
+  display: none;
+}
+body.is-guest #pauseGuest {
+  display: block;
+}
+.ov .cards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 14px;
+}
+.ov .card {
+  width: 200px;
+}
+.ov .card p {
+  min-height: 44px;
+}
+#toast {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #241640ee;
+  border: 1px solid #ffd75e88;
+  color: #ffd75e;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 16px;
+  z-index: 99;
+  opacity: 0;
+  transition: 0.3s;
+  pointer-events: none;
+}
+#toast.show {
+  opacity: 1;
+}
+.kbd {
+  background: #241a3d;
+  border: 1px solid #7c4dff66;
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-family: "Orbitron";
+  font-size: 12px;
+  color: #ffd75e;
+}
+.lobbycode {
+  font-family: "Orbitron";
+  font-size: 34px;
+  letter-spacing: 6px;
+  color: #7dff5e;
+  text-shadow: 0 0 18px #7dff5e66;
+  margin: 8px 0;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+input.code {
+  background: #170e2c;
+  border: 1px solid #7c4dff66;
+  color: #ffd75e;
+  font-family: "Orbitron";
+  font-size: 20px;
+  letter-spacing: 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  width: 180px;
+  text-transform: uppercase;
+  text-align: center;
+  outline: none;
+}
+#playerName {
+  background: #170e2c;
+  border: 1px solid #7c4dff66;
+  color: #ffd75e;
+  font-family: "Rajdhani";
+  font-size: 17px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  width: 170px;
+  outline: none;
+  text-align: center;
+}
+.howbox {
+  max-width: 760px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.howbox b {
+  color: #ffd75e;
+}
+.credit {
+  margin-top: auto;
+  padding-top: 18px;
+  color: #6f5fa3;
+  font-size: 13px;
+  text-align: center;
+}
+.big {
+  font-size: 60px;
+}
+#overStats div {
+  font-size: 20px;
+  margin: 4px 0;
+}
+#overStats b {
+  color: #ffd75e;
+  font-size: 24px;
+}
+.lvl {
+  color: #7dff5e;
+  letter-spacing: 2px;
+}
+.chip {
+  background: #1b1133;
+  border: 1px solid #7c4dff44;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.chip input {
+  accent-color: #ffd75e;
+}
+.chip input:disabled {
+  opacity: 0.4;
+}
+#hudNet {
+  font-size: 14px;
+}
+#hudNet b {
+  font-family: "Orbitron";
+}
+#hudCombo {
+  color: #ff9838;
+  font-weight: 700;
+  animation: pulse 1s infinite;
+}
+.brow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #7c4dff22;
+  font-size: 16px;
+}
+.brow:last-child {
+  border-bottom: none;
+}
+.brow .rk {
+  font-family: "Orbitron";
+  color: #ffd75e;
+  min-width: 44px;
+  text-align: left;
+}
+.brow .bn {
+  flex: 1;
+  text-align: left;
+}
+.brow .bw {
+  color: #8fe6b8;
+}
+.brow .bs {
+  color: #ffd75e;
+  font-weight: 700;
+  min-width: 84px;
+  text-align: right;
+}
+.sw {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #7c4dff55;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.sw.sel {
+  border-color: #fff;
+  box-shadow: 0 0 12px #ffffff88;
+  transform: scale(1.15);
+}
+.pchip {
+  display: inline-block;
+  background: #241a3d;
+  border: 1px solid #7c4dff55;
+  border-radius: 8px;
+  padding: 2px 10px;
+  margin: 3px;
+  font-size: 13px;
+  color: #e8e2ff;
+}
+#treeWrap .card {
+  width: 230px;
+}
+
+/* ================= AJUSTES DA VERSÃO MODULAR ================= */
+
+/* Status de rede: reserva altura fixa pra tela não "pular" a cada mensagem. */
+.netstatus {
+  margin-top: 12px;
+  color: #b9a8ff;
+  font-size: 15px;
+  min-height: 22px;
+  line-height: 1.35;
+}
+
+.treewrap {
+  max-width: 980px;
+  width: 100%;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* Código da sala: é o que o host precisa ler e passar adiante, então tem que
+   saltar aos olhos. Antes ele era jogado dentro do campo de ENTRAR. */
+.lobbycode {
+  user-select: all;
+  cursor: text;
+}
+
+/* Chips de modo de conexão ficam legíveis quando selecionados. */
+.chip:has(input:checked) {
+  border-color: #ffd75e;
+  color: #ffd75e;
+  box-shadow: 0 0 10px #ffd75e44;
+}
+
+#powersList {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ===================================================================
+   OVERLAYS DE LEITURA (poderes / status)
+
+   O BUG: `.ov` tem fundo `rgba(8,4,18,0.86)` — translúcido. A tela de
+   poderes ficava por cima do menu de pausa pelo z-index, mas os botões
+   "Continuar / Poderes da run / Abandonar run" apareciam ATRAVÉS dela.
+   Era isso o "eles ficam em cima das opções do menu".
+
+   Conserto em duas camadas: o overlay de leitura é OPACO, e overlays.js
+   ainda esconde o menu de pausa enquanto ele está aberto.
+   =================================================================== */
+.ov.reader {
+  /* FIXED, não absolute.
+
+     Os `.ov` são `position:absolute; inset:0` DENTRO de #cwrap, ou seja, do
+     tamanho do canvas. Numa janela estreita o canvas fica com ~170px de altura,
+     e sobrava 7px de área útil para a lista de poderes depois do título e do
+     botão — a lista existia, rolava, e era ilegível.
+
+     Poderes e status são telas de LEITURA: ocupam a janela inteira. Isso também
+     é o que o port para celular/tablet vai precisar. */
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  border-radius: 0;
+  background: #0b0518;
+  backdrop-filter: none;
+  justify-content: flex-start;
+  padding: 18px 14px 14px;
+}
+.ov.reader > .tit {
+  margin-bottom: 10px;
+  flex: 0 0 auto;
+}
+.ov.reader > .btn {
+  flex: 0 0 auto;
+  margin-top: 10px;
+}
+/* O corpo rola: com 45 poderes possíveis a lista passava da tela e o botão
+   de fechar saía do quadro. */
+.readerbody {
+  width: 100%;
+  max-width: 760px;
+  text-align: left;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  /* Sem isto um filho de flex-column não encolhe abaixo do conteúdo e o
+     overflow-y nunca chega a rolar. */
+  min-height: 0;
+  padding-right: 4px;
+}
+
+/* ---- poderes: UMA caixa por poder, com o total e o "3x" ---- */
+.pwgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.pwcard {
+  background: linear-gradient(180deg, #1d1236, #130b24);
+  border: 1px solid #7c4dff55;
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+.pwcard.relic {
+  border-color: #ffd75e77;
+  background: linear-gradient(180deg, #2a2038, #1a1226);
+}
+.pwtop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pwic {
+  font-size: 17px;
+  line-height: 1;
+}
+.pwn {
+  font-weight: 700;
+  color: #e8e2ff;
+  font-size: 14px;
+  flex: 1 1 auto;
+}
+.pwx {
+  background: #ffd75e;
+  color: #1a1024;
+  font-weight: 900;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 1px 6px;
+  flex: 0 0 auto;
+}
+.pwcard.relic .pwx {
+  background: #ff9838;
+}
+.pwd {
+  color: #b9a8ff;
+  font-size: 12.5px;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+/* ---- tela de status ---- */
+.stgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(232px, 100%), 1fr));
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.strow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  background: #170e2b;
+  border: 1px solid #7c4dff33;
+  border-radius: 8px;
+  padding: 4px 9px;
+}
+.stk2 {
+  color: #9c8cc9;
+  font-size: 13px;
+}
+.stv {
+  color: #ffd75e;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* ---- carta de escolha: quantos você já tem, e o total do próximo nível ---- */
+.stk {
+  background: #ffd75e;
+  color: #1a1024;
+  font-weight: 900;
+  font-size: 11px;
+  border-radius: 6px;
+  padding: 1px 5px;
+  vertical-align: middle;
+}
+.nextlv {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: #8fe6b8;
+  line-height: 1.3;
+}
+
+/* ===================================================================
+   BARRA DE VIDA DO CHEFE
+   O nome do chefe existia no EDEF desde sempre, mas só aparecia num
+   subtítulo pequeno que desaparecia em 2 segundos — daí a impressão de
+   que o primeiro chefe "se chamava só CHEFE".
+   =================================================================== */
+#bossBar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 82%);
+  pointer-events: none;
+  z-index: 8;
+  text-align: center;
+}
+#bossName {
+  font-family: Orbitron, sans-serif;
+  font-weight: 900;
+  /* Escala com a janela: em tela estreita o canvas encolhe junto, e um nome
+     fixo de 15px como "ZARATH, O PRIMOGÊNITO 55 / 114" quebrava em duas linhas
+     e cobria meia arena. */
+  font-size: clamp(10px, 1.4vw, 15px);
+  line-height: 1.15;
+  letter-spacing: 1px;
+  color: #ffe9a8;
+  text-shadow: 0 0 10px #ff2e88cc, 0 2px 4px #000;
+  margin-bottom: 3px;
+}
+#bossTrack {
+  height: clamp(7px, 1.1vw, 11px);
+  background: #1a0c24;
+  border: 1px solid #ff2e8899;
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: 0 0 12px #ff2e8855;
+}
+#bossFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff2e88, #ff9838, #ffd75e);
+  transition: width 0.12s linear;
+}
+#bossBar.enraged #bossTrack {
+  border-color: #ff5252;
+  box-shadow: 0 0 16px #ff5252aa;
+}
+
+/* ---- botão de banir uma carta (economia de escolha da fase 2) ---- */
+.card {
+  position: relative;
+}
+.banish {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid #ff5d7f66;
+  background: #2a0f1c;
+  color: #ff8fa8;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: 0.12s;
+}
+.banish:hover {
+  opacity: 1;
+  background: #4a1024;
+  transform: scale(1.1);
+}
+
+/* ---- seletor de dificuldade ---- */
+.modebtn {
+  background: #1d1236;
+  border: 1px solid #7c4dff55;
+  color: #b9a8ff;
+  border-radius: 10px;
+  padding: 5px 12px;
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.modebtn:hover {
+  border-color: #7c4dffaa;
+  color: #e8e2ff;
+}
+.modebtn.sel {
+  background: #3a2570;
+  border-color: #ffd75e;
+  color: #ffd75e;
+}
+.modebtn.hard.sel {
+  border-color: #ff9838;
+  color: #ff9838;
+}
+.modebtn.impossible.sel {
+  border-color: #ff5252;
+  color: #ff5252;
+}
+
+/* ---- escolha do ato inicial (checkpoint) ---- */
+.actbtn {
+  background: #150e28;
+  border: 1px solid #7c4dff44;
+  color: #9c8cc9;
+  border-radius: 9px;
+  padding: 5px 10px;
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.actbtn:hover:not(:disabled) {
+  color: #e8e2ff;
+  border-color: #7c4dffaa;
+}
+.actbtn.sel {
+  background: #2c1c56;
+  border-color: #ffd75e;
+  color: #ffd75e;
+}
+.actbtn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+/* =====================================================================
+   FASE 3 — CONTROLES DE TOQUE E LAYOUT RESPONSIVO
+
+   O canvas já era responsivo em LARGURA (`min(1120px, 96vw)`), mas num
+   celular deitado quem limita é a ALTURA: 96vw de largura num aparelho de
+   844x390 pede 700px de altura para manter a proporção 1120x700, e sobravam
+   390. O resultado era o HUD empurrado para fora da tela e metade do canvas
+   cortada. Agora a altura disponível entra na conta.
+   ===================================================================== */
+
+#touchUI {
+  position: absolute;
+  inset: 0;
+  z-index: 7; /* abaixo dos .ov (9+): com a pausa aberta o dedo é do menu */
+  pointer-events: none;
+  font-size: 16px;
+}
+#tStickZone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 46%;
+  pointer-events: auto;
+  /* sem isto o navegador rouba o arrasto para rolar a página e o joystick
+     "escorrega" do dedo no meio da curva */
+  touch-action: none;
+}
+#tStickHint {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  color: #b9a8ff88;
+  font-size: 13px;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+#tStick {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+#tStick.live {
+  opacity: 1;
+}
+#tStickBase,
+#tStickKnob {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(0, 0);
+  pointer-events: none;
+}
+#tStickBase {
+  left: -58px;
+  top: -58px;
+  width: 116px;
+  height: 116px;
+  border: 2px solid #7c4dff66;
+  background: radial-gradient(circle, #241640aa, #170e2c55);
+  box-shadow: 0 0 22px #7c4dff44;
+}
+#tStickKnob {
+  left: -30px;
+  top: -30px;
+  width: 60px;
+  height: 60px;
+  border: 2px solid #b9a8ffcc;
+  background: radial-gradient(circle at 35% 30%, #cbb8ff, #6a3fd6);
+  box-shadow: 0 0 18px #b04dff88;
+}
+#tBtns {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 180px;
+  pointer-events: auto;
+}
+.tbtn {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  font-size: 26px;
+  line-height: 1;
+  color: #e8e2ff;
+  background: linear-gradient(180deg, #241640dd, #170e2cdd);
+  border: 2px solid #7c4dff66;
+  box-shadow: 0 0 14px #00000066;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.tbtn.ab {
+  width: 86px;
+  height: 86px;
+  font-size: 36px;
+  border-color: #ffd75e99;
+  background: radial-gradient(circle at 35% 30%, #3a2a5e, #1a1030);
+}
+.tbtn.ab2 {
+  border-color: #7dff5e99;
+}
+.tbtn.hit {
+  transform: scale(0.92);
+  border-color: #7dff5e;
+  box-shadow: 0 0 18px #7dff5e88;
+}
+
+/* Com o toque ligado, a dica de teclado embaixo do canvas só ocupa espaço. */
+body.touch-on #ctrlHint {
+  display: none;
+}
+body.touch-on #game {
+  padding: 6px 4px;
+}
+
+/* --- telas baixas / celular deitado --- */
+@media (max-height: 620px) {
+  #game {
+    padding: 4px;
+  }
+  #cwrap {
+    width: 99vw;
+  }
+  canvas#cv {
+    /* Aqui a proporção fixa sai de cena: a caixa fica do tamanho da tela e o
+       render/canvas.js mede essa caixa para decidir a janela de visão. É o que
+       elimina as tarjas pretas do celular deitado. 74px é o HUD. */
+    width: 100%;
+    height: calc(100vh - 74px);
+    max-height: none;
+    aspect-ratio: auto;
+  }
+  #hud {
+    margin-bottom: 2px;
+    gap: 6px;
+  }
+  .hpbox {
+    padding: 2px 8px;
+    font-size: 13px;
+  }
+  #hudC .wv {
+    font-size: 15px;
+  }
+  #hudC .sc {
+    font-size: 12px;
+  }
+  .abicon {
+    width: 34px;
+    height: 34px;
+    font-size: 17px;
+  }
+  .tbtn {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+  .tbtn.ab {
+    width: 70px;
+    height: 70px;
+    font-size: 30px;
+  }
+  #tBtns {
+    width: 150px;
+  }
+}
+
+/* --- telas estreitas: menu e cartas cabem num celular em pé --- */
+@media (max-width: 560px) {
+  .btn {
+    min-width: 0;
+    width: min(92vw, 340px);
+    font-size: 17px;
+    padding: 11px 16px;
+  }
+  .btn.small {
+    width: auto;
+  }
+  .screen {
+    padding: 12px 8px;
+  }
+  .ov .card {
+    width: min(92vw, 200px);
+  }
+  .ov .cards {
+    gap: 8px;
+  }
+  h2.tit {
+    margin: 4px 0 2px;
+  }
+  .sub {
+    margin-bottom: 10px;
+  }
+  #hud {
+    font-size: 13px;
+  }
+}
+
+/* =====================================================================
+   FASE 3 — PVP
+
+   O HUD do duelo é um bloco próprio (#pvpHud), separado do #hud da campanha:
+   aqui o que importa é nível, vida, escudo e experiência dos DOIS, mais o
+   relógio até a morte súbita. Os painéis ficam nas pontas, na mesma ordem
+   das metades da tela dividida — o J1 é sempre o da esquerda.
+   ===================================================================== */
+
+.btn.pvp {
+  border-color: #ff2e8899;
+  background: linear-gradient(180deg, #3a1230, #1f0a20);
+}
+.btn.pvp:hover {
+  border-color: #ff2e88;
+  box-shadow: 0 0 18px #ff2e8855;
+}
+
+#pvpHud {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(1120px, 96vw);
+  margin-bottom: 6px;
+}
+.pvpSide {
+  flex: 1 1 0;
+  max-width: 340px;
+  background: #170e2ccc;
+  border: 1px solid #7c4dff44;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+.pvpSide.right {
+  text-align: right;
+}
+.pvpname {
+  font-family: "Orbitron";
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.pvpname .lv {
+  background: #ffd75e22;
+  border: 1px solid #ffd75e66;
+  color: #ffd75e;
+  border-radius: 6px;
+  padding: 0 6px;
+  margin-left: 6px;
+  font-size: 11px;
+}
+.pvpbar {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: #0d0918;
+  border: 1px solid #7c4dff33;
+  overflow: hidden;
+  margin: 3px 0;
+}
+.pvpbar i {
+  display: block;
+  height: 100%;
+  transition: width 0.12s linear;
+}
+.pvpbar b {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 4px #000, 0 0 4px #000;
+}
+.pvpbar.hp i {
+  background: linear-gradient(90deg, #ff4d6d, #ff9838);
+}
+.pvpbar.gd i {
+  background: linear-gradient(90deg, #3aa6ff, #6fd3ff);
+}
+.pvpbar.xp i {
+  background: linear-gradient(90deg, #7dff5e, #d6ff5e);
+}
+.pvpbar.xp {
+  height: 10px;
+}
+.pvpicons {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+.pvpSide.right .pvpicons {
+  justify-content: flex-end;
+}
+.pvpcd {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  border: 2px solid #ffd75e55;
+}
+.pvpcd.ready {
+  border-color: #7dff5e;
+  box-shadow: 0 0 10px #7dff5e66;
+}
+/* Os segundos que faltam, por cima do ícone: sem isso o cone de recarga diz
+   "ainda não" mas não diz "falta quanto", e o item é justamente a carta que
+   se joga na hora certa. */
+.pvpcd span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Orbitron";
+  font-size: 13px;
+  color: #fff;
+  background: #0d0918cc;
+  border-radius: 50%;
+}
+.pvpMid {
+  text-align: center;
+  font-family: "Orbitron";
+  padding-top: 4px;
+}
+.pvpClock {
+  font-size: 26px;
+  color: #ffd75e;
+  text-shadow: 0 0 14px #ffd75e55;
+  letter-spacing: 2px;
+}
+.pvpClock.urgent {
+  color: #ff2e88;
+  text-shadow: 0 0 18px #ff2e88;
+  animation: pvppulse 0.9s infinite;
+}
+@keyframes pvppulse {
+  50% {
+    transform: scale(1.08);
+  }
+}
+.pvpStacks {
+  font-size: 12px;
+  color: #c3b6ea;
+  margin-top: 2px;
+}
+
+@media (max-height: 620px) {
+  #pvpHud {
+    width: 99vw;
+    gap: 6px;
+  }
+  .pvpSide {
+    padding: 3px 6px;
+  }
+  .pvpbar {
+    height: 11px;
+  }
+  .pvpbar.xp {
+    height: 8px;
+  }
+  .pvpcd {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+  .pvpClock {
+    font-size: 18px;
+  }
+}
+/* Fase 3: a arena ocupa a altura livre, inclusive em tablets e celulares. */
+#game { padding: 10px; overflow: hidden; gap: 4px; }
+#cwrap { width: min(1120px, 100%); flex: 1; min-height: 0; max-height: 820px; }
+canvas#cv { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; }
+#hud, #pvpHud, #ctrlHint { flex-shrink: 0; width: min(1120px, 100%); }
+#ctrlHint { font-size: 13px; margin: 1px; }
+#pvpHud { margin: 0; gap: 12px; }
+.pvpSide { padding: 6px 10px; }
+.pvpicons { position: absolute; right: 6px; top: 4px; }
+.pvpSide { position: relative; }
+.pvpname { padding-right: 80px; }
+.pvpcd { width: 30px; height: 30px; font-size: 16px; }
+.pvpnet { color: #b9a8ff; font-size: 12px; white-space: nowrap; }
+#pvpChoices { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.pvp-choice { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: min(400px, 70%); pointer-events: auto; color: #f0eaff; background: #140e24e8; border: 1px solid #f6c66c99; border-radius: 12px; box-shadow: 0 0 25px #b04dff30; overflow: hidden; font-size: 14px; }
+#pvpChoices.split .pvp-choice { width: calc(50% - 20px); max-width: 400px; }
+#pvpChoices.split .player-0 { left: 25%; }
+#pvpChoices.split .player-1 { left: 75%; }
+.pick-heading { padding: 7px 34px 7px 10px; font-size: 12px; font-weight: bold; color: #ffd75e; position: relative; }
+.pick-heading small { display: block; color: #c3b6ea; font-weight: normal; }
+.pick-collapse { position: absolute; right: 6px; top: 4px; width: 26px; height: 28px; background: #322047; border: 0; border-radius: 6px; color: white; cursor: pointer; }
+.pvp-card { display: flex; gap: 9px; align-items: center; width: 100%; min-height: 44px; padding: 7px 10px; background: transparent; border: 0; border-top: 1px solid #b9a8ff30; text-align: left; color: #eee7ff; font-family: inherit; cursor: pointer; touch-action: manipulation; }
+.pvp-card:hover, .pvp-card:focus-visible { background: #513269; outline: 2px solid #ffd75e; outline-offset: -2px; }
+.pvp-card kbd { background: #322047; padding: 4px 7px; border-radius: 5px; color: #ffd75e; }
+.pvp-card b { font-size: 14px; display: block; }
+.pvp-card small { font-size: 12px; display: block; color: #d8cceb; }
+.pvp-choice.collapsed .pvp-card { display: none; }
+body.touch-on .pvp-choice { top: 8px; bottom: auto; width: min(380px, 90%); }
+#onlineMode { background: #241640; border: 1px solid #b9a8ff; border-radius: 6px; color: white; padding: 8px 12px; font: inherit; margin-bottom: 12px; }
+button.card { color: #e8e2ff; font-family: inherit; text-align: center; }
+button.card:focus-visible { outline: 2px solid #ffd75e; }
+.tree-node.blocked { opacity: .5; cursor: not-allowed; }
+.tree-breadcrumb { display: flex; gap: 5px; flex-wrap: wrap; }
+.tree-layers { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; justify-content: center; }
+.tree-layers span { background: #251936; color: #baaad9; padding: 6px 12px; border-radius: 6px; font-size: 13px; }
+.tree-layers b { display: block; color: #ffd75e; }
+.tree-totals, .tree-respec { margin: 18px 0; padding: 12px; border: 1px solid #7c4dff55; border-radius: 8px; }
+.tree-totals summary, .tree-respec summary { cursor: pointer; color: #b9a8ff; }
+.tree-totals p, .tree-respec p { color: #b9a8ff; max-width: 65ch; }
+body.pvp-active #banner { justify-content: flex-start; padding-top: 30px; }
+body.pvp-active #bannerT { font-size: clamp(17px, 3vw, 30px); }
+body.pvp-active .reader { inset: 5% 8%; background: #100b1ff0; }
+@media (max-height: 620px) {
+  #game { padding: 3px; gap: 2px; }
+  #cwrap { width: 100%; }
+  canvas#cv { height: 100%; }
+  #pvpHud { gap: 6px; }
+  .pvpSide { padding: 3px 7px; }
+  .pvpbar { height: 11px; margin: 2px 0; }
+  .pvpbar b { font-size: 10px; }
+  .pvpname { font-size: 11px; }
+  .pvpicons { display: none; }
+  .pvpname { padding-right: 0; }
+  .pvpClock { font-size: 15px; }
+  .pvpStacks { font-size: 11px; }
+  .pvp-card { min-height: 36px; padding: 3px 8px; }
+  .pick-heading { padding: 4px 34px 4px 8px; }
+  #ctrlHint { font-size: 11px; }
+}
+@media (max-width: 560px) {
+  #pvpHud { gap: 4px; }
+  .pvpSide { padding: 3px 5px; min-width: 0; }
+  .pvpMid { min-width: 76px; }
+  .pvpname { padding: 0; font-size: 10px; }
+  .pvpicons { display: none; }
+  .pvpClock { font-size: 15px; }
+  .pvpStacks { font-size: 10px; }
+  .pvp-card small { font-size: 11px; }
+  #pvpChoices.split .pvp-card kbd { display: none; }
+  #pvpChoices.split .pvp-choice { width: calc(50% - 8px); }
+  #bannerS { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pvpClock.urgent { animation: none; }
+}
+#tStickZone2 { position:absolute; top:0; bottom:0; left:50%; width:24%; pointer-events:auto; touch-action:none; }
+#tStick2 { position:absolute; width:0; height:0; opacity:0; }
+#tStick2.live { opacity:1; }
+#tStickBase2 { position:absolute; width:116px; height:116px; left:-58px; top:-58px; border-radius:50%; border:2px solid #7dff5e66; background:#170e2c55; pointer-events:none; }
+#tStickKnob2 { position:absolute; width:60px; height:60px; left:-30px; top:-30px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#b8ffc3,#368f5a); border:2px solid #b9ffb8cc; pointer-events:none; }
+#tStickHint2 { position:absolute; bottom:12px; left:10px; font-size:12px; color:#b9a8ff88; pointer-events:none; }
+#tBtns2 { position:absolute; right:8px; bottom:10px; display:flex; flex-direction:column; gap:8px; pointer-events:auto; }
+.local-touch #tStickZone { width:24%; }
+.local-touch #tBtns { right:calc(50% + 8px); width:70px; gap:6px; }
+.local-touch #tBtns .tbtn:not(.ab):not(.item) { width:30px; height:30px; font-size:14px; }
+.local-touch .tbtn.ab { width:56px; height:56px; font-size:26px; }
+.local-touch .tbtn.item { width:44px; height:44px; font-size:22px; }
+.local-touch #tBtns2 { width:65px; align-items:flex-end; }
+/* Laboratório: painel rolável independente da arena e dos controles de toque. */
+#sandboxButton { align-self:flex-start; margin:6px 0; }
+#sandboxPanel { position:fixed;z-index:110;right:16px;top:16px;bottom:16px;width:min(440px,calc(100vw - 32px));box-sizing:border-box;overflow-y:auto;background:#171027;border:1px solid #76609b;border-radius:18px;padding:20px;color:#eee5ff;box-shadow:0 20px 70px #000b;text-align:left; }
+.sandbox-head {display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-20px;background:#171027;padding:12px 0;z-index:2;}
+.sandbox-head h2 {margin:0;color:#f6d580;font-size:22px;}
+.sandbox-note,#sandboxPanel small,#sandboxPanel p {color:#c2b3d9;font-size:13px;line-height:1.5;}
+#sandboxPanel fieldset {border:1px solid #513c70;border-radius:12px;padding:14px;margin:18px 0;min-width:0;}
+#sandboxPanel legend {color:#f6d580;padding:0 6px;font-weight:bold;}
+#sandboxPanel label {display:flex;flex-direction:column;gap:6px;font-size:14px;margin:10px 0;min-width:0;}
+#sandboxPanel input,#sandboxPanel select {box-sizing:border-box;width:100%;min-width:0;padding:10px;background:#100a1d;border:1px solid #71558f;color:#f3ebff;border-radius:8px;font:inherit;}
+#sandboxPanel .sandbox-check {flex-direction:row;align-items:center;}
+#sandboxPanel input[type=checkbox] {width:auto;}
+#sandboxPanel button {margin:6px 0;white-space:normal;}
+.sandbox-grid {display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+.sandbox-preview {display:flex;gap:10px;align-items:center;}
+.sandbox-preview img {width:76px;height:76px;flex-shrink:0;}
+#sandboxPanel a {display:block;color:#ccb2fa;margin-top:14px;}
+.status-chip {display:inline-block;background:#392642;color:#ffc0db;border:1px solid #d277a4;border-radius:4px;padding:1px 4px;margin:2px;font-size:10px;}
+/* Progressão compacta e opções da expansão */
+.run-options{width:min(760px,94vw);margin:8px auto 16px;text-align:left;border:1px solid #4e4168;border-radius:12px;padding:12px 16px;background:#171025}
+.run-options summary{cursor:pointer;color:#d0bdf5;font-weight:700}.run-options p{font-size:14px;color:#b7aacd;line-height:1.5}
+.run-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px 0}
+.run-options label{display:flex;flex-direction:column;gap:6px;color:#d9c9f0}
+.run-options select,.run-options input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #594571;background:#0f091b;color:#eee5ff;border-radius:6px}
+.tree-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.tree-tabs .btn{width:auto}
+.tree-map-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.tree-map-head h2{margin-bottom:4px}
+.tree-bulk{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:10px}.tree-bulk small{color:#b6a7cf}
+.tree-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;text-align:left}
+.tree-map-root{max-width:400px;margin:12px auto 24px}.tree-major{min-width:0;border:1px solid #48325e;border-radius:12px;background:#150d21;padding:12px}
+.tree-map-node{box-sizing:border-box;width:100%;display:flex;flex-direction:column;gap:5px;padding:12px;text-align:left;border:1px solid #534463;border-radius:8px;background:#21152d;color:#cabdde;font:inherit;line-height:1.35;min-height:92px;cursor:pointer}
+.tree-map-node b{font-size:15px}.tree-map-node span{font-size:14px}.tree-map-node small{font-size:12px;color:#a797bd}
+.tree-map-node.available{border-color:#e0b761;background:#342616}.tree-map-node.available small{color:#ffd75e}.tree-map-node.owned{border-color:#569b85;background:#132b27}.tree-map-node.owned small{color:#8bdfb6}
+.tree-map-node:disabled{opacity:1;cursor:default}.tree-map-node.locked{color:#a297b5;background:#1c1525}
+.tree-children{border-left:1px solid #735582;margin:10px 0 8px 9px;padding-left:12px;display:flex;flex-direction:column;gap:10px}.tree-limb{position:relative}.tree-children>.tree-limb:before{content:'';position:absolute;left:-12px;top:26px;width:12px;height:1px;background:#735582}
+.btn:disabled{opacity:.45;cursor:not-allowed}.fruit-buffs{max-width:340px;font-size:11px;color:#ddd3ad;line-height:1.3;margin-top:4px}
+#qtePanel{position:absolute;z-index:45;top:50%;left:50%;transform:translate(-50%,-50%);width:min(520px,90%);box-sizing:border-box;border:2px solid #71e6ff;border-radius:16px;background:rgba(12,10,30,.97);color:#eef4ff;padding:24px;text-align:center;box-shadow:0 8px 60px #0009}
+#qtePanel b{color:#88e8ff;font-size:19px}#qtePanel p{font-size:15px}#qtePanel small{display:block;color:#beb8d5;margin-top:14px}
+#qteSequence{display:flex;justify-content:center;gap:18px;margin:16px}#qteSequence span{font-size:40px;color:#736785}#qteSequence .current{color:#ffe49a;border-bottom:3px solid}#qteSequence .done{color:#67e9af}
+#qteTime{width:85%;height:10px;accent-color:#72e7ff}.qte-buttons{display:flex;justify-content:center;gap:10px;margin-top:18px}.qte-buttons button{font:700 28px sans-serif;background:#29213f;color:#e9e3ff;border:1px solid #8578a4;border-radius:8px;min-width:52px;min-height:48px;cursor:pointer}
+.ui-icon{display:inline-flex;vertical-align:-.12em;width:1em;height:1em;align-items:center;justify-content:center;margin:0 .08em}.ui-icon svg{width:100%;height:100%;overflow:visible}.emoji-icon{display:none}
+body[data-art="emoji"] .ui-icon svg{display:none}body[data-art="emoji"] .emoji-icon{display:inline}
+.modebtn.hardcore{border-color:#ff674d;color:#ff9574}.modebtn.hardcore.sel{background:#55231b}
+body.qte-active #banner{visibility:hidden}
+@media(max-width:850px){.tree-map{grid-template-columns:1fr}.tree-map-head{flex-direction:column;align-items:flex-start}.tree-major{padding:10px}.tree-tabs .btn{font-size:12px;padding:6px 10px}}
+@media(max-width:500px){.run-options-grid{grid-template-columns:1fr}.run-options{padding:10px}#qtePanel{padding:16px}.fruit-buffs{max-width:170px;font-size:10px}}

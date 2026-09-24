@@ -1,0 +1,31 @@
+{
+  "name": "snake-roguelike-ultra",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Snake Roguelike Ultra — roguelite de acao em tempo real, com arvore de habilidades, chefes e multiplayer.",
+  "scripts": {
+    "dev": "php -S localhost:8123 -t .",
+    "dev:lan": "php -S 0.0.0.0:8123 -t .",
+    "dev:node": "npx --yes serve -l 8123 .",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --experimental-vm-modules scripts/check.mjs",
+    "test:browser": "node scripts/browser-tests.mjs",
+    "test:network": "node scripts/network-tests.mjs",
+    "test:expansion": "node scripts/expansion-tests.mjs",
+    "test:lab": "node scripts/laboratory-tests.mjs",
+    "test:progression": "node scripts/progression-tests.mjs",
+    "test:soundtrack": "node scripts/soundtrack-tests.mjs",
+    "inspect:tracks": "node scripts/inspect-tracks.mjs",
+    "test:direct": "node scripts/direct-tests.mjs",
+    "test:perf": "node scripts/perf-tests.mjs",
+    "build:bestiary": "node scripts/build-bestiary.mjs",
+    "test:rooms": "node --test peer-server/tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
