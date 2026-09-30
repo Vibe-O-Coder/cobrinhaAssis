@@ -1,3 +1,5 @@
+[Read in english!](./README.en.md)
+
 # cobrinhaAssis
 jogo da cobrinha do assis muito foda kakakakakakakakakakakakakakakakakakakakakakakakakakakaka
 
