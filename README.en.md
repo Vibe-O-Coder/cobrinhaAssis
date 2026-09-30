@@ -1,6 +1,9 @@
+[Leia em português!](./README.md)
+
 # Assis's snake
 
 snake game but like very funny, lol
+
 ---
 
 ## License
